@@ -313,13 +313,16 @@ public final class BotUtils {
         : "Перепиши новину за інформацією з посилання.";
 
     final String linkContext = buildLinkContext(urls);
+    final String urlsListStr = String.join(", ", urls);
+
     if (!StringUtils.hasText(linkContext)) {
       return NEWS_LINK_INSTRUCTION
           + "\n\n"
           + newsPrompt()
           + "\n\n"
           + basePrompt
-          + "\n\nЯкщо посилання недоступні, використай наявний текст і перепиши новину стандартно.";
+          + "\n\nПосилання для обробки: " + urlsListStr
+          + "\n\n(Примітка: Нам не вдалося автоматично завантажити вміст цих посилань. Будь ласка, спробуй самостійно отримати/знайти інформацію за цими посиланнями за допомогою своїх інструментів пошуку/доступу до веб-сторінок, або напиши новину на основі наявного тексту та назви посилання.)";
     }
 
     return NEWS_LINK_INSTRUCTION
@@ -327,6 +330,7 @@ public final class BotUtils {
         + newsPrompt()
         + "\n\n"
         + basePrompt
+        + "\n\nПосилання для обробки: " + urlsListStr
         + "\n\nІнформація з посилань:\n"
         + linkContext;
   }
@@ -346,13 +350,16 @@ public final class BotUtils {
         : "Напиши розгорнуту статтю за інформацією з посилання.";
 
     final String linkContext = buildLinkContext(urls);
+    final String urlsListStr = String.join(", ", urls);
+
     if (!StringUtils.hasText(linkContext)) {
       return ARTICLES_LINK_INSTRUCTION
           + "\n\n"
           + articlesPrompt()
           + "\n\n"
           + basePrompt
-          + "\n\nЯкщо посилання недоступні, використай наявний текст і напиши статтю стандартно.";
+          + "\n\nПосилання для обробки: " + urlsListStr
+          + "\n\n(Примітка: Нам не вдалося автоматично завантажити вміст цих посилань. Будь ласка, спробуй самостійно отримати/знайти інформацію за цими посиланнями за допомогою своїх інструментів пошуку/доступу до веб-сторінок, або напиши статтю на основі наявного тексту та контексту посилання.)";
     }
 
     return ARTICLES_LINK_INSTRUCTION
@@ -360,6 +367,7 @@ public final class BotUtils {
         + articlesPrompt()
         + "\n\n"
         + basePrompt
+        + "\n\nПосилання для обробки: " + urlsListStr
         + "\n\nІнформація з посилань:\n"
         + linkContext;
   }
@@ -430,8 +438,10 @@ public final class BotUtils {
   public static String fetchLinkContext(final String url) {
     try {
       final HttpRequest request = HttpRequest.newBuilder(URI.create(url))
-          .timeout(Duration.ofSeconds(8))
-          .header("User-Agent", "Mozilla/5.0")
+          .timeout(Duration.ofSeconds(10))
+          .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+          .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8")
+          .header("Accept-Language", "en-US,en;q=0.5")
           .GET()
           .build();
 
