@@ -149,6 +149,7 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
     final boolean hasAudioMessage = hasVoice || hasAudio;
     final Long chatId = message.getChatId();
     final boolean groupChat = BotUtils.isGroupChat(message);
+    final boolean isCommand = text.startsWith("/");
 
     final byte[] imageBytes = hasPhoto ? downloadBestPhoto(message) : null;
     final byte[] downloadedAudioBytes = hasAudioMessage ? downloadAudioMessage(message) : null;
@@ -176,6 +177,7 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
         message.getFrom().getUserName());
 
     if (!hasPhoto && !hasAudioMessage && !hasVideoNote && !hasVideo && !StringUtils.hasText(text)) {
+      log.info("Received empty message");
       return;
     }
 
@@ -203,7 +205,7 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
       }
     }
 
-    if (hasVideoNote || hasVideo) {
+    if ((hasVideoNote || hasVideo) && !isCommand) {
       if (groupChat && needAutoTranscribe) {
         final String transcribed = getTranscribed(true, message, extractedAudioFromVideoBytes,
             aiChatService);
@@ -218,7 +220,7 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
       return;
     }
 
-    if (hasAudioMessage) {
+    if (hasAudioMessage && !isCommand) {
       if (groupChat && needAutoTranscribe) {
         final String transcribed = getTranscribed(hasVoice, message, rawAudioBytes, aiChatService);
         if (!StringUtils.hasText(transcribed)) {
@@ -234,10 +236,11 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
 
     if (groupChat) {
       if (!StringUtils.hasText(text)) {
+        log.info("Received empty text message in group chat");
         return;
       }
 
-      if (!BotUtils.isAddressedToBot(text, botUsername)) {
+      if (!BotUtils.isAddressedToBot(text, botUsername) && !isCommand) {
         addTranscribedInContext(message.getFrom().getUserName(), message.getFrom().getUserName(),
             text, chatId, chatContext);
         return;
