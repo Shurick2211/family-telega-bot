@@ -258,7 +258,7 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
       case "/hello" -> new ReplyData("Hello!", false);
       case "/news" -> newsAction(normalizedText, hasPhoto, imageBytes);
       case "/articles" -> {
-        articlesAction(normalizedText, chatId);
+        articlesAction(message, normalizedText, chatId);
         yield null;
       }
       case "/text" -> {
@@ -470,8 +470,20 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
         : new ReplyData(aiChatService.askNews(preparedPrompt), true);
   }
 
-  private void articlesAction(final String normalizedText, final Long chatId) {
-    final String promptArticles = BotUtils.extractCommandPayload(normalizedText);
+  private void articlesAction(final Message message, final String normalizedText, final Long chatId) {
+    String promptArticles = BotUtils.extractCommandPayload(normalizedText);
+
+    if (message.getReplyToMessage() != null) {
+      final String replyText = BotUtils.resolveIncomingText(message.getReplyToMessage());
+      if (StringUtils.hasText(replyText)) {
+        if (StringUtils.hasText(promptArticles)) {
+          promptArticles = promptArticles + "\n\nДжерело/Матеріал:\n" + replyText;
+        } else {
+          promptArticles = replyText;
+        }
+      }
+    }
+
     final String preparedPrompt = BotUtils.prepareArticlesPrompt(StringUtils.hasText(promptArticles)
         ? promptArticles
         : "Напиши розгорнуту статтю за інформацією отримавши інформацію з прикріпленого посилання.");
