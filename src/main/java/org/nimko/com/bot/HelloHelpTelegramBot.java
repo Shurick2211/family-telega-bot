@@ -219,7 +219,7 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
           return;
         }
 
-        addTranscribedInContext(message.getFrom().getUserName(), message.getFrom().getUserName(),
+        addTranscribedInContext(BotUtils.getSenderName(message.getFrom()), BotUtils.getSenderName(message.getFrom()),
             "[video] " + transcribed, chatId, chatContext);
       }
       return;
@@ -233,7 +233,7 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
           return;
         }
 
-        addTranscribedInContext(message.getFrom().getUserName(), message.getFrom().getUserName(),
+        addTranscribedInContext(BotUtils.getSenderName(message.getFrom()), BotUtils.getSenderName(message.getFrom()),
             "[audio] " + transcribed, chatId, chatContext);
       }
       return;
@@ -246,7 +246,7 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
       }
 
       if (!BotUtils.isAddressedToBot(text, botUsername) && !isCommand) {
-        addTranscribedInContext(message.getFrom().getUserName(), message.getFrom().getUserName(),
+        addTranscribedInContext(BotUtils.getSenderName(message.getFrom()), BotUtils.getSenderName(message.getFrom()),
             text, chatId, chatContext);
         log.info("Saved context in group chat");
         return;
@@ -276,7 +276,7 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
       }
       case "/help" -> new ReplyData(BotUtils.HELP, false);
       default -> justMessaging(normalizedText, hasPhoto, chatId, groupChat, imageBytes,
-          message.getFrom().getUserName());
+          BotUtils.getSenderName(message.getFrom()));
     };
 
     if (response != null) {

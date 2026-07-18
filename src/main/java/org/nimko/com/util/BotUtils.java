@@ -22,6 +22,7 @@ import org.nimko.com.ai.AiChatService.ChatMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.StringUtils;
+import org.telegram.telegrambots.meta.api.objects.User;
 import org.telegram.telegrambots.meta.api.objects.message.Message;
 
 public final class BotUtils {
@@ -79,10 +80,28 @@ public final class BotUtils {
   }
 
   public static boolean isGroupChat(final Message message) {
-    return message != null
-        && message.getChat() != null
-        && (Boolean.TRUE.equals(message.getChat().isGroupChat())
-        || Boolean.TRUE.equals(message.getChat().isSuperGroupChat()));
+    if (message == null || message.getChat() == null) {
+      return false;
+    }
+    final String type = message.getChat().getType();
+    return "group".equalsIgnoreCase(type) || "supergroup".equalsIgnoreCase(type)
+        || Boolean.TRUE.equals(message.getChat().isGroupChat())
+        || Boolean.TRUE.equals(message.getChat().isSuperGroupChat());
+  }
+
+  public static String getSenderName(final User user) {
+    if (user == null) {
+      return "Unknown";
+    }
+    if (StringUtils.hasText(user.getUserName())) {
+      return user.getUserName();
+    }
+    final String firstName = user.getFirstName();
+    if (StringUtils.hasText(firstName)) {
+      final String lastName = user.getLastName();
+      return StringUtils.hasText(lastName) ? firstName + " " + lastName : firstName;
+    }
+    return user.getId().toString();
   }
 
   public static boolean startsWithBotPrefix(final String text) {
