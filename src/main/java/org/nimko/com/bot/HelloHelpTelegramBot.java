@@ -154,7 +154,7 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
     final boolean hasAudioMessage = hasVoice || hasAudio;
     final Long chatId = message.getChatId();
     final boolean groupChat = BotUtils.isGroupChat(message);
-    final boolean isCommand = text.startsWith("/");
+    final boolean isCommand = text != null && text.startsWith("/");
 
     final byte[] imageBytes = hasPhoto ? downloadBestPhoto(message) : null;
     final byte[] downloadedAudioBytes = hasAudioMessage ? downloadAudioMessage(message) : null;
