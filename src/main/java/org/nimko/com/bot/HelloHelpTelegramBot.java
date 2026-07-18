@@ -10,6 +10,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import org.apache.coyote.BadRequestException;
 import org.nimko.com.ai.AiChatService;
 import org.nimko.com.config.TelegramBotProperties;
 import org.nimko.com.services.AudioConverter;
@@ -181,17 +182,17 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
       return;
     }
 
-    if (hasPhoto && (imageBytes == null || imageBytes.length == 0)) {
+    if (hasPhoto && (imageBytes == null || imageBytes.length == 0) && !isNews(chatId)) {
       log.warn("Failed to download the image.");
       return;
     }
-    if (hasAudioMessage && (rawAudioBytes == null || rawAudioBytes.length == 0)) {
+    if (hasAudioMessage && (rawAudioBytes == null || rawAudioBytes.length == 0) && !isNews(chatId)) {
       log.warn("Failed to download or convert audio.");
       return;
     }
     
     if ((hasVideoNote || hasVideo) && (extractedAudioFromVideoBytes == null
-        || extractedAudioFromVideoBytes.length == 0)) {
+        || extractedAudioFromVideoBytes.length == 0) && !isNews(chatId)) {
       log.warn("Failed to extract audio from video.");
       return;
     }
@@ -205,7 +206,7 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
       }
     }
 
-    if ((hasVideoNote || hasVideo) && !isCommand) {
+    if ((hasVideoNote || hasVideo) && !isCommand && !isNews(chatId)) {
       if (groupChat && needAutoTranscribe) {
         final String transcribed = getTranscribed(true, message, extractedAudioFromVideoBytes,
             aiChatService);
@@ -220,7 +221,7 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
       return;
     }
 
-    if (hasAudioMessage && !isCommand) {
+    if (hasAudioMessage && !isCommand && !isNews(chatId)) {
       if (groupChat && needAutoTranscribe) {
         final String transcribed = getTranscribed(hasVoice, message, rawAudioBytes, aiChatService);
         if (!StringUtils.hasText(transcribed)) {
@@ -432,7 +433,7 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
     }
 
     log.debug("Prompt sent to AI: {}", prompt);
-    final var result = chatId == newsChatId && !groupChat ?
+    final var result = isNews(chatId) && !groupChat ?
         new ReplyData(aiChatService.askNews(BotUtils.prepareNewsPrompt(prompt)), true)
         : new ReplyData(aiChatService.ask(prompt), false);
 
@@ -441,6 +442,10 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
     }
 
     return result;
+  }
+
+  private boolean isNews(final Long chatId) {
+    return chatId == newsChatId;
   }
 
   private ReplyData newsAction(final String normalizedText, final boolean hasPhoto,
@@ -540,12 +545,11 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
           .uri(URI.create(fileUrl))
           .retrieve()
           .body(byte[].class);
-    } catch (final RuntimeException ex) {
+    } catch (final Exception ex) {
       log.error("Failed to download media from Telegram for chat {}", message.getChatId(), ex);
       return null;
     }
   }
-
 
   private void sendReply(final Long chatId, final String text, final byte[] photoBytes) {
     sendReply(chatId, text, photoBytes, null);
