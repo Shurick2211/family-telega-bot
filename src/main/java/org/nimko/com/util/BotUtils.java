@@ -448,11 +448,12 @@ public final class BotUtils {
         java.util.Map.of("type", "image_url", "image_url", java.util.Map.of("url", dataUrl)));
   }
 
-  public static void addTranscribedInContext(final String message, final String message1, final String transcribed,
+  public static void addTranscribedInContext(final String message, final String username, final String transcribed,
       final Long chatId, final Map<Long, List<String>> chatContext) {
+    log.info("Saved context for {}", username);
     final var json = new JSONObject();
     json.put("userName", message);
-    json.put("name", message1);
+    json.put("name", username);
     json.put("text", transcribed);
 
     addMessageToContext(chatId, json.toJSONString(), chatContext);

@@ -244,6 +244,7 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
       if (!BotUtils.isAddressedToBot(text, botUsername) && !isCommand) {
         addTranscribedInContext(message.getFrom().getUserName(), message.getFrom().getUserName(),
             text, chatId, chatContext);
+        log.info("Saved context in group chat");
         return;
       }
     }
