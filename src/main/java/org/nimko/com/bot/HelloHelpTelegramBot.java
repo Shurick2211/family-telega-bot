@@ -710,7 +710,6 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
 
   @PreDestroy
   private void destroy() {
-    chatContext.clear();
     mediaDownloadService.shutdown();
   }
 

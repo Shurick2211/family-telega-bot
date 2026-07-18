@@ -39,6 +39,7 @@ public final class BotUtils {
       Якщо у новинному тексті є посилання на зовнішній ресурс, спочатку отримай інформацію саме з нього.
       Потім перепиши новину стандартним новинним стилем: нейтрально, без вигадок і з повним збереженням фактів.
       """;
+  public static final int MAX_CONTEXT_SIZE = 50;
 
   private BotUtils() {
   }
@@ -460,10 +461,10 @@ public final class BotUtils {
   }
 
   private static void addMessageToContext(final Long chatId, final String jsonMessage, final Map<Long, List<String>> chatContext) {
-    final var contextList = chatContext.computeIfAbsent(chatId, k -> Collections.synchronizedList(new ArrayList<>()));
+    final var contextList = chatContext.computeIfAbsent(chatId, k -> new ArrayList<>());
     contextList.add(jsonMessage);
 
-    while (contextList.size() > 25) {
+    while (contextList.size() > MAX_CONTEXT_SIZE) {
       contextList.remove(0);
     }
   }
