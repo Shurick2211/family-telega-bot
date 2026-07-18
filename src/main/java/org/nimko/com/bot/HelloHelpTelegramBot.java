@@ -14,6 +14,7 @@ import org.apache.coyote.BadRequestException;
 import org.nimko.com.ai.AiChatService;
 import org.nimko.com.config.TelegramBotProperties;
 import org.nimko.com.services.AudioConverter;
+import org.nimko.com.services.DocxGeneratorService;
 import org.nimko.com.services.MediaDownloadService;
 import org.nimko.com.util.BotUtils;
 import org.nimko.com.util.BotUtils.ReplyPayload;
@@ -45,6 +46,7 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
 
   private final Map<Long, List<String>> chatContext = new ConcurrentHashMap<>();
   private final AudioConverter audioConverter;
+  private final DocxGeneratorService docxGeneratorService;
   private final MediaDownloadService mediaDownloadService;
   private final boolean needAutoTranscribe;
 
@@ -53,6 +55,7 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
   public HelloHelpTelegramBot(
       final TelegramBotProperties telegramProperties,
       final AiChatService aiChatService, final AudioConverter audioConverter,
+      final DocxGeneratorService docxGeneratorService,
       final boolean needAutoTranscribe, final long newsChatId, final String downloaderEndpoint) {
     this.botToken = telegramProperties.token();
     this.botUsername = telegramProperties.username();
@@ -61,6 +64,7 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
         : "https://api.telegram.org";
     this.aiChatService = aiChatService;
     this.audioConverter = audioConverter;
+    this.docxGeneratorService = docxGeneratorService;
     this.needAutoTranscribe = needAutoTranscribe;
     this.newsChatId = newsChatId;
     this.mediaDownloadService = new MediaDownloadService(new MediaDownloadService.FileSender() {
@@ -253,6 +257,10 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
       case "/start" -> new ReplyData("The Family bot is started and ready to help you!", false);
       case "/hello" -> new ReplyData("Hello!", false);
       case "/news" -> newsAction(normalizedText, hasPhoto, imageBytes);
+      case "/articles" -> {
+        articlesAction(normalizedText, chatId);
+        yield null;
+      }
       case "/text" -> {
         handleTextCommandFull(message, hasVoice, rawAudioBytes, extractedAudioFromVideoBytes, chatId);
         yield null;
@@ -460,6 +468,65 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
         ? new ReplyData(aiChatService.askNewsWithImage(preparedPrompt, imageBytes, "image/jpeg"),
         true)
         : new ReplyData(aiChatService.askNews(preparedPrompt), true);
+  }
+
+  private void articlesAction(final String normalizedText, final Long chatId) {
+    final String promptArticles = BotUtils.extractCommandPayload(normalizedText);
+    final String preparedPrompt = BotUtils.prepareArticlesPrompt(StringUtils.hasText(promptArticles)
+        ? promptArticles
+        : "Напиши розгорнуту статтю за інформацією отримавши інформацію з прикріпленого посилання.");
+
+    try {
+      sendTextReply(chatId, "Генерую статтю, зачекайте будь ласка...");
+
+      final String generatedArticle = aiChatService.askArticle(preparedPrompt);
+      if (!StringUtils.hasText(generatedArticle) || generatedArticle.startsWith("AI provider")) {
+        sendTextReply(chatId, "Не вдалося згенерувати статтю: " + generatedArticle);
+        return;
+      }
+
+      log.info("Generating DOCX document from generated article...");
+      final byte[] docxBytes = docxGeneratorService.generateDocxFromMarkdown(generatedArticle);
+      if (docxBytes == null || docxBytes.length == 0) {
+        sendTextReply(chatId, "Помилка при створенні .docx файлу.");
+        return;
+      }
+
+      final String filename = "article_" + System.currentTimeMillis() + ".docx";
+      sendDocument(chatId, docxBytes, filename);
+    } catch (final Exception ex) {
+      log.error("Error processing /articles command for chat {}", chatId, ex);
+      sendTextReply(chatId, "Сталася помилка при обробці команди: " + ex.getMessage());
+    }
+  }
+
+  private void sendDocument(final Long chatId, final byte[] bytes, final String filename) {
+    final LinkedMultiValueMap<String, Object> form = new LinkedMultiValueMap<>();
+    form.add("chat_id", chatId.toString());
+    form.add("document", new ByteArrayResource(bytes) {
+      @Override
+      public String getFilename() {
+        return filename;
+      }
+
+      @Override
+      public long contentLength() {
+        return bytes.length;
+      }
+    });
+
+    try {
+      telegramClient.post()
+          .uri("/bot{token}/sendDocument", botToken)
+          .contentType(MediaType.MULTIPART_FORM_DATA)
+          .body(form)
+          .retrieve()
+          .toBodilessEntity();
+      log.info("Document sent successfully to chat {}", chatId);
+    } catch (final RuntimeException ex) {
+      log.error("Failed to send document to chat {}", chatId, ex);
+      sendTextReply(chatId, "Failed to send generated document.");
+    }
   }
 
   private boolean isMediaDocument(final Message message) {

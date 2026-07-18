@@ -61,6 +61,52 @@ public class AiChatService {
     return askInternal(prompt, imageBytes, mimeType, true, null);
   }
 
+  public String askArticle(final String prompt) {
+    log.info("Ask article!!!");
+    return askInternalWithSystem(prompt, BotUtils.articlesPrompt());
+  }
+
+  private String askInternalWithSystem(final String prompt, final String systemPrompt) {
+    if (!properties.isConfigured()) {
+      return "AI provider is not configured.";
+    }
+
+    final double temperature = 0.3d;
+    final String userPrompt = StringUtils.hasText(prompt) ? prompt.trim() : "";
+    final var currentModel = properties.defaultModel();
+
+    final ChatCompletionRequest request = new ChatCompletionRequest(
+        currentModel,
+        List.of(
+            new ChatMessage("system", systemPrompt),
+            new ChatMessage("user", buildUserContentNew(userPrompt, null, null))
+        ),
+        temperature);
+
+    try {
+      final ChatCompletionResponse response = restClient.post()
+          .uri("/chat/completions")
+          .contentType(MediaType.APPLICATION_JSON)
+          .body(request)
+          .retrieve()
+          .body(ChatCompletionResponse.class);
+
+      final String content =
+          response == null || response.choices() == null || response.choices().isEmpty()
+              ? null
+              : BotUtils.extractContent(response.choices().get(0).message());
+
+      if (!StringUtils.hasText(content)) {
+        return "AI provider returned an empty response.";
+      }
+
+      return content.trim();
+    } catch (final RuntimeException ex) {
+      log.error("Failed to query AI provider with custom system prompt", ex);
+      return "AI provider request failed.";
+    }
+  }
+
   public String transcribeAudio(final byte[] audioBytes, final String mimeType) {
     final var result = askInternal(
         "Transcribe this audio. Return only the transcribed text, nothing else.",

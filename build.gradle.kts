@@ -22,6 +22,7 @@ dependencies {
     implementation("org.telegram:telegrambots-springboot-longpolling-starter:9.5.0")
     implementation("com.alibaba:fastjson:1.2.83")
     implementation("ws.schild:jave-core:3.3.1")
+    implementation("org.apache.poi:poi-ooxml:5.3.0")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
 }

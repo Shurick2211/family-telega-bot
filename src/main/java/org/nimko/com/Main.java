@@ -5,6 +5,7 @@ import org.nimko.com.bot.HelloHelpTelegramBot;
 import org.nimko.com.config.AiChatProperties;
 import org.nimko.com.config.TelegramBotProperties;
 import org.nimko.com.services.AudioConverter;
+import org.nimko.com.services.DocxGeneratorService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -43,7 +44,8 @@ public class Main {
       final TelegramBotProperties telegramProperties,
       final AiChatService aiChatService,
       final AiChatProperties aiProperties,
-      final AudioConverter audioConverter
+      final AudioConverter audioConverter,
+      final DocxGeneratorService docxGeneratorService
   ) {
     return args -> {
       if (!telegramProperties.isConfigured()) {
@@ -54,7 +56,7 @@ public class Main {
       try {
         telegramBotsLongPollingApplication.registerBot(
             telegramProperties.token(),
-            new HelloHelpTelegramBot(telegramProperties, aiChatService, audioConverter, telegramProperties.needAutoTranscribe(), telegramProperties.newsChatId(), telegramProperties.downloaderEndpoint()));
+            new HelloHelpTelegramBot(telegramProperties, aiChatService, audioConverter, docxGeneratorService, telegramProperties.needAutoTranscribe(), telegramProperties.newsChatId(), telegramProperties.downloaderEndpoint()));
         log.info("Telegram bot registered: {}", telegramProperties.username());
         log.info("AI model configured: {}", aiProperties.defaultModel());
       } catch (final Exception ex) {
