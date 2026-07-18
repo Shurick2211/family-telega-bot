@@ -1,6 +1,7 @@
 package org.nimko.com.ai;
 
 import static org.nimko.com.util.BotUtils.buildUserContentNew;
+
 import java.util.List;
 import org.nimko.com.config.AiChatProperties;
 import org.nimko.com.util.BotUtils;
@@ -28,9 +29,9 @@ public class AiChatService {
     final RestClient restClient;
     restClient = properties.isConfigured()
         ? RestClient.builder()
-            .baseUrl(properties.apiBaseUrl())
-            .defaultHeader("Authorization", "Bearer " + key)
-            .build()
+        .baseUrl(properties.apiBaseUrl())
+        .defaultHeader("Authorization", "Bearer " + key)
+        .build()
         : null;
     return restClient;
   }
@@ -41,9 +42,13 @@ public class AiChatService {
 
   public String askNews(final String prompt) {
     log.info("Ask news!!!");
-    restClient = getRestClient(properties, properties.apiKeySecondary());
+    if (properties.enableSecondary()) {
+      restClient = getRestClient(properties, properties.apiKeySecondary());
+    }
     final var result = askInternal(prompt, null, null, true, null);
-    restClient = getRestClient(properties, properties.apiKey());
+    if (properties.enableSecondary()) {
+      restClient = getRestClient(properties, properties.apiKey());
+    }
     return result;
   }
 
@@ -51,19 +56,22 @@ public class AiChatService {
     return askInternal(prompt, imageBytes, mimeType, false, null);
   }
 
-  public String askNewsWithImage(final String prompt, final byte[] imageBytes, final String mimeType) {
+  public String askNewsWithImage(final String prompt, final byte[] imageBytes,
+      final String mimeType) {
     return askInternal(prompt, imageBytes, mimeType, true, null);
   }
 
   public String transcribeAudio(final byte[] audioBytes, final String mimeType) {
-    final var result = askInternal("Transcribe this audio. Return only the transcribed text, nothing else.",
+    final var result = askInternal(
+        "Transcribe this audio. Return only the transcribed text, nothing else.",
         audioBytes, mimeType, false, transcriptionModel);
     log.info("Transcribed audio: {}", result);
     return result.trim();
   }
 
   public String transcribeVideo(final byte[] videoBytes, final String mimeType) {
-    final var result = askInternal("Transcribe this video. Return only the transcribed text, nothing else.",
+    final var result = askInternal(
+        "Transcribe this video. Return only the transcribed text, nothing else.",
         videoBytes, mimeType, false, transcriptionModel);
     log.info("Transcribed video: {}", result);
     return result.trim();
@@ -75,7 +83,8 @@ public class AiChatService {
         : "You are a concise assistant inside a Telegram bot.";
   }
 
-  private String askInternal(final String prompt, final byte[] imageBytes, final String mimeType, final boolean news, final String model) {
+  private String askInternal(final String prompt, final byte[] imageBytes, final String mimeType,
+      final boolean news, final String model) {
     if (!properties.isConfigured()) {
       return "AI provider is not configured.";
     }
@@ -103,9 +112,10 @@ public class AiChatService {
           .retrieve()
           .body(ChatCompletionResponse.class);
 
-      final String content = response == null || response.choices() == null || response.choices().isEmpty()
-          ? null
-          : BotUtils.extractContent(response.choices().get(0).message());
+      final String content =
+          response == null || response.choices() == null || response.choices().isEmpty()
+              ? null
+              : BotUtils.extractContent(response.choices().get(0).message());
 
       if (!StringUtils.hasText(content)) {
         return "AI provider returned an empty response.";
@@ -118,15 +128,20 @@ public class AiChatService {
     }
   }
 
-  public record ChatCompletionRequest(String model, List<ChatMessage> messages, double temperature) {
+  public record ChatCompletionRequest(String model, List<ChatMessage> messages,
+                                      double temperature) {
+
   }
 
   public record ChatMessage(String role, Object content) {
+
   }
 
   public record ChatCompletionResponse(List<Choice> choices) {
+
   }
 
   public record Choice(ChatMessage message) {
+
   }
 }

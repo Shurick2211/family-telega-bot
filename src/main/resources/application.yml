@@ -9,7 +9,7 @@ telegram:
     username: ${TELEGRAM_BOT_USERNAME}
     token: ${TELEGRAM_BOT_TOKEN}
     api-base-url: ${TELEGRAM_BOT_API_BASE_URL}
-    need-auto-transcribe: false
+    need-auto-transcribe: ${AUTO_TRANSCRIBE:false}
     news-chat-id: ${NEWS_CHAT_ID}
     downloader-endpoint: ${DOWNLOADER_ENDPOINT}
 
@@ -17,6 +17,7 @@ ai:
   api-base-url: ${AI_API_BASE_URL}
   api-key: ${AI_API_KEY}
   api-key-secondary: ${AI_API_KEY_2}
+  enable-secondery: ${ENABLE_SECONDARY:false}
   default-model: ${AI_DEFAULT_MODEL}
   system-prompt: ${AI_SYSTEM_PROMPT}
 

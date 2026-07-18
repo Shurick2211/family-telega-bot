@@ -8,6 +8,7 @@ public record AiChatProperties(
     String apiBaseUrl,
     String apiKey,
     String apiKeySecondary,
+    boolean enableSecondary,
     String defaultModel,
     String systemPrompt) {
 
