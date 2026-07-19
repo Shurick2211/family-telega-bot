@@ -313,6 +313,21 @@ public final class BotUtils {
     return startsWithBotPrefix(trimmed);
   }
 
+  public static boolean isReplyToBot(final Message message, final String botUsername) {
+    if (message == null || StringUtils.isBlank(botUsername)) {
+      return false;
+    }
+    final Message replyTo = message.getReplyToMessage();
+    if (replyTo == null) {
+      return false;
+    }
+    final User from = replyTo.getFrom();
+    if (from == null) {
+      return false;
+    }
+    return botUsername.equalsIgnoreCase(from.getUserName());
+  }
+
   public static String prepareNewsPrompt(final String prompt) {
     if (StringUtils.isBlank(prompt)) {
       return prompt;
