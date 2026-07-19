@@ -10,7 +10,6 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Base64;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -544,10 +543,11 @@ public final class BotUtils {
   }
 
   public static void addTranscribedInContext(final String message, final String username, final String transcribed,
-      final Long chatId, final Map<Long, List<String>> chatContext) {
+      final Long chatId, final int messageId,final Map<Long, List<String>> chatContext) {
     log.info("Saved context for {}", username);
     final var json = new JSONObject();
     json.put("userName", message);
+    json.put("messageId", messageId);
     json.put("name", username);
     json.put("text", transcribed);
 

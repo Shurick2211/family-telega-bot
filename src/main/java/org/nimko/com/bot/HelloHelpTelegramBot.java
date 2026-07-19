@@ -3,6 +3,7 @@ package org.nimko.com.bot;
 import static org.nimko.com.util.BotUtils.addTranscribedInContext;
 import static org.nimko.com.util.TranscribedUtils.getTranscribed;
 
+import com.alibaba.fastjson.JSON;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.annotation.PreDestroy;
 import java.net.URI;
@@ -10,7 +11,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import org.apache.coyote.BadRequestException;
 import org.nimko.com.ai.AiChatService;
 import org.nimko.com.config.TelegramBotProperties;
 import org.nimko.com.services.AudioConverter;
@@ -155,6 +155,7 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
     final Long chatId = message.getChatId();
     final boolean groupChat = BotUtils.isGroupChat(message);
     final boolean isCommand = text != null && text.startsWith("/");
+    final int messageId = message.getMessageId();
 
     final byte[] imageBytes = hasPhoto ? downloadBestPhoto(message) : null;
     final byte[] downloadedAudioBytes = hasAudioMessage ? downloadAudioMessage(message) : null;
@@ -220,7 +221,7 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
         }
 
         addTranscribedInContext(BotUtils.getSenderName(message.getFrom()), BotUtils.getSenderName(message.getFrom()),
-            "[video] " + transcribed, chatId, chatContext);
+            "[video] " + transcribed, chatId, messageId,chatContext);
       }
       return;
     }
@@ -234,7 +235,7 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
         }
 
         addTranscribedInContext(BotUtils.getSenderName(message.getFrom()), BotUtils.getSenderName(message.getFrom()),
-            "[audio] " + transcribed, chatId, chatContext);
+            "[audio] " + transcribed, chatId, messageId,chatContext);
       }
       return;
     }
@@ -247,7 +248,7 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
 
       if (!BotUtils.isAddressedToBot(text, botUsername) && !isCommand) {
         addTranscribedInContext(BotUtils.getSenderName(message.getFrom()), BotUtils.getSenderName(message.getFrom()),
-            text, chatId, chatContext);
+            text, chatId, messageId, chatContext);
         log.info("Saved context in group chat");
         return;
       }
@@ -276,7 +277,7 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
       }
       case "/help" -> new ReplyData(BotUtils.HELP, false);
       default -> justMessaging(normalizedText, hasPhoto, chatId, groupChat, imageBytes,
-          BotUtils.getSenderName(message.getFrom()));
+          BotUtils.getSenderName(message.getFrom()), messageId);
     };
 
     if (response != null) {
@@ -308,6 +309,18 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
       if (replyTo.hasVideoNote() || replyTo.hasVideo() || replyTo.hasAudio() || replyTo.hasVoice() || 
           (replyTo.hasDocument() && isMediaDocument(replyTo))) {
         targetMessage = replyTo;
+        final var replyContextOp = chatContext.get(chatId).stream()
+            .filter(j -> (int) JSON.parseObject(j).getInteger("messageId")
+                == replyTo.getMessageId()).findFirst();
+        if (replyContextOp.isPresent()) {
+          final var replyContext = JSON.parseObject(replyContextOp.get());
+          final var replyText = replyContext.getString("text");
+          if (StringUtils.hasText(replyText)) {
+            sendTextReply(chatId, replyText);
+            return;
+          }
+        }
+
         final byte[] replyAudioBytes;
         if (replyTo.hasVoice() || replyTo.hasAudio() || (replyTo.hasDocument() && isMediaDocument(replyTo))) {
           replyAudioBytes = downloadAudioMessage(replyTo);
@@ -410,7 +423,7 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
 
   private ReplyData justMessaging(final String normalizedText, final boolean hasPhoto,
       final Long chatId, final boolean groupChat, final byte[] imageBytes,
-      final String authorUsername) {
+      final String authorUsername, final int messageId) {
 
     if (StringUtils.hasText(normalizedText) && normalizedText.startsWith("/")) {
       return new ReplyData("Bot does not know this command: " + normalizedText, false);
@@ -423,7 +436,7 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
 
     if (groupChat && StringUtils.hasText(normalizedText)) {
       addTranscribedInContext(authorUsername, authorUsername,
-          BotUtils.stripTextPrefix(normalizedText), chatId, chatContext);
+          BotUtils.stripTextPrefix(normalizedText), chatId, messageId, chatContext);
     }
 
     if (hasPhoto) {
@@ -447,7 +460,7 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
         : new ReplyData(aiChatService.ask(prompt), false);
 
     if (groupChat && result.text() != null) {
-      addTranscribedInContext(botUsername, "Bot", result.text(), chatId, chatContext);
+      addTranscribedInContext(botUsername, "Bot", result.text(), chatId, messageId, chatContext);
     }
 
     return result;
