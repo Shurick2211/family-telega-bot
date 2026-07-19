@@ -35,7 +35,7 @@ public class MediaDownloadService {
     this.downloaderEndpoint = downloaderEndpoint;
   }
 
-  public void submitDownload(final Long chatId, final String url, final Locale locale) {
+  public void submitDownload(final Long chatId, final String url, final Locale locale) throws IllegalArgumentException{
     executor.submit(() -> {
       try {
         TranslationContext.setLocale(locale);
@@ -60,13 +60,13 @@ public class MediaDownloadService {
       } catch (final InterruptedException e) {
         Thread.currentThread().interrupt();
         log.warn("Download interrupted for url {}", url, e);
-        sender.sendText(chatId, "Download interrupted for: " + url);
+        throw new IllegalArgumentException(e);
       } catch (final IOException e) {
         log.error("I/O error while downloading url {}", url, e);
-        sender.sendText(chatId, "I/O error while downloading: " + e.getMessage());
+        throw new IllegalArgumentException(e);
       } catch (final Exception e) {
         log.error("Unexpected error while downloading url {}", url, e);
-        sender.sendText(chatId, "Error while downloading: " + e.getMessage());
+        throw new IllegalArgumentException(e);
       } finally {
         TranslationContext.clear();
       }

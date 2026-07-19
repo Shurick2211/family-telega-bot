@@ -1,6 +1,7 @@
 package org.nimko.com.bot;
 
 import static org.nimko.com.util.BotUtils.addTranscribedInContext;
+import static org.nimko.com.util.BotUtils.hasAudioVideo;
 import static org.nimko.com.util.TranscribedUtils.getTranscribed;
 
 import com.alibaba.fastjson.JSON;
@@ -11,6 +12,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import org.jetbrains.annotations.Nullable;
 import org.nimko.com.ai.AiChatService;
 import org.nimko.com.config.TelegramBotProperties;
 import org.nimko.com.services.AudioConverter;
@@ -23,10 +25,7 @@ import org.nimko.com.util.BotUtils;
 import org.nimko.com.util.BotUtils.ReplyPayload;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.core.io.ByteArrayResource;
-import org.springframework.http.MediaType;
 import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.util.LinkedMultiValueMap;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.web.client.RestClient;
 import org.telegram.telegrambots.longpolling.interfaces.LongPollingUpdateConsumer;
@@ -34,12 +33,9 @@ import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
 import org.telegram.telegrambots.meta.api.objects.message.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 
-public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
+public class FamilyTelegramBot implements LongPollingUpdateConsumer {
 
-  private static final Logger log = LoggerFactory.getLogger(HelloHelpTelegramBot.class);
-  private static final String COPY_IMG_CALLBACK_PREFIX = "copy_img:";
-  private static final String TELEGRAM_PARSE_MODE = "Markdown";
-
+  private static final Logger log = LoggerFactory.getLogger(FamilyTelegramBot.class);
 
   private final String botToken;
   private final String botUsername;
@@ -53,15 +49,17 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
   private final MediaDownloadService mediaDownloadService;
   private final boolean needAutoTranscribe;
   private final TranslationService translationService;
+  private final BotSenderService botSenderService;
 
   private final long newsChatId;
 
-  public HelloHelpTelegramBot(
+  public FamilyTelegramBot(
       final TelegramBotProperties telegramProperties,
       final AiChatService aiChatService, final AudioConverter audioConverter,
       final DocxGeneratorService docxGeneratorService,
       final boolean needAutoTranscribe, final long newsChatId, final String downloaderEndpoint,
-      final TranslationService translationService) {
+      final TranslationService translationService,
+      final BotSenderService botSenderService) {
     this.botToken = telegramProperties.token();
     this.botUsername = telegramProperties.username();
     this.telegramApiBaseUrl = StringUtils.isNotBlank(telegramProperties.apiBaseUrl())
@@ -73,45 +71,8 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
     this.needAutoTranscribe = needAutoTranscribe;
     this.newsChatId = newsChatId;
     this.translationService = translationService;
-    this.mediaDownloadService = new MediaDownloadService(new MediaDownloadService.FileSender() {
-      @Override
-      public void sendText(final Long chatId, final String text) {
-        sendTextReply(chatId, text);
-      }
-
-      @Override
-      public void sendFile(final Long chatId, final byte[] bytes, final String filename,
-          final String contentType) {
-        // For simplicity, send as document. Telegram sendDocument multipart requires a ByteArrayResource.
-        final LinkedMultiValueMap<String, Object> form = new LinkedMultiValueMap<>();
-        form.add("chat_id", chatId.toString());
-        form.add("parse_mode", TELEGRAM_PARSE_MODE);
-        form.add("caption", filename);
-        form.add("document", new ByteArrayResource(bytes) {
-          @Override
-          public String getFilename() {
-            return filename != null ? filename : "file.bin";
-          }
-
-          @Override
-          public long contentLength() {
-            return bytes.length;
-          }
-        });
-
-        try {
-          telegramClient.post()
-              .uri("/bot{token}/sendDocument", botToken)
-              .contentType(MediaType.MULTIPART_FORM_DATA)
-              .body(form)
-              .retrieve()
-              .toBodilessEntity();
-        } catch (final RuntimeException ex) {
-          log.error("Failed to send downloaded file to chat {}", chatId, ex);
-          sendTextReply(chatId, translationService.getTranslate("bot.media.upload.failed", filename));
-        }
-      }
-    }, downloaderEndpoint);
+    this.botSenderService = botSenderService;
+    this.mediaDownloadService = new MediaDownloadService(botSenderService, downloaderEndpoint);
     this.telegramClient = RestClient.builder()
         .baseUrl(telegramApiBaseUrl)
         .build();
@@ -250,8 +211,14 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
     if (StringUtils.isNotBlank(normalizedText) && BotUtils.containsMediaUrl(normalizedText)) {
       final String foundUrl = BotUtils.extractFirstUrl(normalizedText);
       if (StringUtils.isNotBlank(foundUrl)) {
-        mediaDownloadService.submitDownload(message.getChatId(), foundUrl, TranslationContext.getLocale());
-        sendTextReply(message.getChatId(), translationService.getTranslate("bot.media.downloading"));
+        try {
+          mediaDownloadService.submitDownload(message.getChatId(), foundUrl,
+              TranslationContext.getLocale());
+          botSenderService.sendTextReply(message.getChatId(),
+              translationService.getTranslate("bot.media.downloading"));
+        } catch (final Exception ex) {
+          log.error("Error downloading media from URL: {}", foundUrl, ex);
+        }
         return;
       }
     }
@@ -299,7 +266,23 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
       }
     }
 
-    final ReplyData response = switch (BotUtils.normalizeCommand(normalizedText)) {
+    final ReplyData response = processByBot(normalizedText, hasPhoto, imageBytes, message, chatId,
+        hasVoice, rawAudioBytes, extractedAudioFromVideoBytes, groupChat, messageId);
+
+    if (response != null) {
+      if (response.newsResponse()) {
+        botSenderService.sendNewsReply(chatId, response.text(), hasPhoto ? imageBytes : null);
+      } else {
+        botSenderService.sendReply(chatId, response.text(), hasPhoto ? imageBytes : null);
+      }
+    }
+  }
+
+  @Nullable
+  private ReplyData processByBot(final String normalizedText, final boolean hasPhoto, final byte[] imageBytes,
+      final Message message, final Long chatId, final boolean hasVoice, final byte[] rawAudioBytes,
+      final byte[] extractedAudioFromVideoBytes, final boolean groupChat, final int messageId) {
+    return switch (BotUtils.normalizeCommand(normalizedText)) {
       case "/start" -> new ReplyData(translationService.getTranslate("bot.start"), false);
       case "/hello" -> new ReplyData(translationService.getTranslate("bot.hello"), false);
       case "/news" -> newsAction(normalizedText, hasPhoto, imageBytes);
@@ -308,7 +291,8 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
         yield null;
       }
       case "/text" -> {
-        handleTextCommandFull(message, hasVoice, rawAudioBytes, extractedAudioFromVideoBytes, chatId);
+        handleTextCommandFull(message, hasVoice, rawAudioBytes, extractedAudioFromVideoBytes,
+            chatId);
         yield null;
       }
       case "/audio" -> {
@@ -318,20 +302,13 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
       case "/context" -> {
         final var contextList = chatContext.get(chatId);
         yield new ReplyData(
-            contextList != null ? String.join("\n", contextList) : translationService.getTranslate("bot.context.empty"), false);
+            contextList != null ? String.join("\n", contextList)
+                : translationService.getTranslate("bot.context.empty"), false);
       }
       case "/help" -> new ReplyData(translationService.getTranslate("bot.help"), false);
       default -> justMessaging(normalizedText, hasPhoto, chatId, groupChat, imageBytes,
           BotUtils.getSenderName(message.getFrom()), messageId);
     };
-
-    if (response != null) {
-      if (response.newsResponse()) {
-        sendNewsReply(chatId, response.text(), hasPhoto ? imageBytes : null);
-      } else {
-        sendReply(chatId, response.text(), hasPhoto ? imageBytes : null);
-      }
-    }
   }
 
   private void handleTextCommandFull(final Message message, final boolean hasVoice,
@@ -340,18 +317,16 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
     byte[] audioToUse = null;
     boolean isVoice = hasVoice;
 
-    if ((message.hasVideoNote() || message.hasVideo() || message.hasAudio() || message.hasVoice())) {
+    if (hasAudioVideo(message)) {
       if (message.hasVideoNote() || message.hasVideo()) {
         audioToUse = extractedAudioFromVideoBytes;
       } else if (message.hasVoice() || message.hasAudio()) {
         audioToUse = rawAudioBytes;
         isVoice = message.hasVoice();
       }
-    }
-    else if (message.getReplyToMessage() != null) {
+    } else if (message.getReplyToMessage() != null) {
       final Message replyTo = message.getReplyToMessage();
-      if (replyTo.hasVideoNote() || replyTo.hasVideo() || replyTo.hasAudio() || replyTo.hasVoice() || 
-          (replyTo.hasDocument() && isMediaDocument(replyTo))) {
+      if (hasAudioVideo(replyTo) || (replyTo.hasDocument() && isMediaDocument(replyTo))) {
         targetMessage = replyTo;
         final var replyContextOp = chatContext.get(chatId).stream()
             .filter(j -> (int) JSON.parseObject(j).getInteger("messageId")
@@ -360,7 +335,7 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
           final var replyContext = JSON.parseObject(replyContextOp.get());
           final var replyText = replyContext.getString("text");
           if (StringUtils.isNotBlank(replyText)) {
-            sendTextReply(chatId, replyText);
+            botSenderService.sendTextReply(chatId, replyText);
             return;
           }
         }
@@ -386,7 +361,7 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
     }
 
     if (audioToUse == null || audioToUse.length == 0) {
-      sendTextReply(chatId, translationService.getTranslate("bot.text.reply.prompt"));
+      botSenderService.sendTextReply(chatId, translationService.getTranslate("bot.text.reply.prompt"));
       return;
     }
 
@@ -396,14 +371,14 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
 
       if (StringUtils.isBlank(transcribed)) {
         log.warn("Failed to transcribe the audio.");
-        sendTextReply(chatId, translationService.getTranslate("bot.text.failed"));
+        botSenderService.sendTextReply(chatId, translationService.getTranslate("bot.text.failed"));
         return;
       }
 
-      sendTextReply(chatId, transcribed);
+      botSenderService.sendTextReply(chatId, transcribed);
     } catch (final Exception ex) {
       log.error("Error processing /text command for chat {}", chatId, ex);
-      sendTextReply(chatId, translationService.getTranslate("bot.text.error", ex.getMessage()));
+      botSenderService.sendTextReply(chatId, translationService.getTranslate("bot.text.error", ex.getMessage()));
     }
   }
 
@@ -423,45 +398,16 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
     }
 
     if (audioToSend == null || audioToSend.length == 0) {
-      sendTextReply(chatId, translationService.getTranslate("bot.audio.reply.prompt"));
+      botSenderService.sendTextReply(chatId, translationService.getTranslate("bot.audio.reply.prompt"));
       return;
     }
 
     try {
       log.info("Sending extracted audio as MP3...");
-      sendAudioFile(chatId, audioToSend, "audio.mp3");
+      botSenderService.sendAudioFile(chatId, audioToSend, "audio.mp3");
     } catch (final Exception ex) {
       log.error("Error processing /audio command for chat {}", chatId, ex);
-      sendTextReply(chatId, translationService.getTranslate("bot.audio.error", ex.getMessage()));
-    }
-  }
-
-  private void sendAudioFile(final Long chatId, final byte[] audioBytes, final String filename) {
-    final LinkedMultiValueMap<String, Object> form = new LinkedMultiValueMap<>();
-    form.add("chat_id", chatId.toString());
-    form.add("audio", new ByteArrayResource(audioBytes) {
-      @Override
-      public String getFilename() {
-        return filename;
-      }
-
-      @Override
-      public long contentLength() {
-        return audioBytes.length;
-      }
-    });
-
-    try {
-      telegramClient.post()
-          .uri("/bot{token}/sendAudio", botToken)
-          .contentType(MediaType.MULTIPART_FORM_DATA)
-          .body(form)
-          .retrieve()
-          .toBodilessEntity();
-      log.info("Audio file sent successfully to chat {}", chatId);
-    } catch (final RuntimeException ex) {
-      log.error("Failed to send audio file to chat {}", chatId, ex);
-      sendTextReply(chatId, translationService.getTranslate("bot.audio.failed"));
+      botSenderService.sendTextReply(chatId, translationService.getTranslate("bot.audio.error", ex.getMessage()));
     }
   }
 
@@ -546,55 +492,26 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
         : "Напиши розгорнуту статтю за інформацією отримавши інформацію з прикріпленого посилання.");
 
     try {
-      sendTextReply(chatId, "Генерую статтю, зачекайте будь ласка...");
+      botSenderService.sendTextReply(chatId, "Генерую статтю, зачекайте будь ласка...");
 
       final String generatedArticle = aiChatService.askArticle(preparedPrompt);
       if (StringUtils.isBlank(generatedArticle) || generatedArticle.startsWith("AI provider")) {
-        sendTextReply(chatId, "Не вдалося згенерувати статтю: " + generatedArticle);
+        botSenderService.sendTextReply(chatId, "Не вдалося згенерувати статтю: " + generatedArticle);
         return;
       }
 
       log.info("Generating DOCX document from generated article...");
       final byte[] docxBytes = docxGeneratorService.generateDocxFromMarkdown(generatedArticle);
       if (docxBytes == null || docxBytes.length == 0) {
-        sendTextReply(chatId, "Помилка при створенні .docx файлу.");
+        botSenderService.sendTextReply(chatId, "Помилка при створенні .docx файлу.");
         return;
       }
 
       final String filename = "article_" + System.currentTimeMillis() + ".docx";
-      sendDocument(chatId, docxBytes, filename);
+      botSenderService.sendDocument(chatId, docxBytes, filename);
     } catch (final Exception ex) {
       log.error("Error processing /articles command for chat {}", chatId, ex);
-      sendTextReply(chatId, "Сталася помилка при обробці команди: " + ex.getMessage());
-    }
-  }
-
-  private void sendDocument(final Long chatId, final byte[] bytes, final String filename) {
-    final LinkedMultiValueMap<String, Object> form = new LinkedMultiValueMap<>();
-    form.add("chat_id", chatId.toString());
-    form.add("document", new ByteArrayResource(bytes) {
-      @Override
-      public String getFilename() {
-        return filename;
-      }
-
-      @Override
-      public long contentLength() {
-        return bytes.length;
-      }
-    });
-
-    try {
-      telegramClient.post()
-          .uri("/bot{token}/sendDocument", botToken)
-          .contentType(MediaType.MULTIPART_FORM_DATA)
-          .body(form)
-          .retrieve()
-          .toBodilessEntity();
-      log.info("Document sent successfully to chat {}", chatId);
-    } catch (final RuntimeException ex) {
-      log.error("Failed to send document to chat {}", chatId, ex);
-      sendTextReply(chatId, "Failed to send generated document.");
+      botSenderService.sendTextReply(chatId, "Сталася помилка при обробці команди: " + ex.getMessage());
     }
   }
 
@@ -688,104 +605,6 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
     }
   }
 
-  private void sendReply(final Long chatId, final String text, final byte[] photoBytes) {
-    sendReply(chatId, text, photoBytes, null);
-  }
-
-  private void sendReply(final Long chatId, final String text, final byte[] photoBytes,
-      final String replyMarkupJson) {
-    if (photoBytes != null && photoBytes.length > 0) {
-      final String caption = BotUtils.buildMarkdownCaption(text);
-      if (sendPhotoReply(chatId, photoBytes, caption, replyMarkupJson)) {
-        if (StringUtils.isBlank(caption) && StringUtils.isNotBlank(text)) {
-          sendTextReply(chatId, text);
-        }
-        return;
-      }
-    }
-    sendTextReply(chatId, text, replyMarkupJson);
-  }
-
-  private boolean sendTextReply(final Long chatId, final String text) {
-    return sendTextReply(chatId, text, null);
-  }
-
-  private boolean sendTextReply(final Long chatId, final String text,
-      final String replyMarkupJson) {
-    if (StringUtils.isBlank(text)) {
-      return false;
-    }
-
-    final LinkedMultiValueMap<String, String> form = new LinkedMultiValueMap<>();
-    form.add("chat_id", chatId.toString());
-    form.add("text", text);
-    form.add("parse_mode", TELEGRAM_PARSE_MODE);
-    if (StringUtils.isNotBlank(replyMarkupJson)) {
-      form.add("reply_markup", replyMarkupJson);
-    }
-
-    try {
-      telegramClient.post()
-          .uri("/bot{token}/sendMessage", botToken)
-          .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-          .body(form)
-          .retrieve()
-          .toBodilessEntity();
-      return true;
-    } catch (final RuntimeException ex) {
-      log.error("Failed to send Telegram response to chat {}", chatId, ex);
-      return false;
-    }
-  }
-
-  private boolean sendPhotoReply(final Long chatId, final byte[] photoBytes, final String caption,
-      final String replyMarkupJson) {
-    final LinkedMultiValueMap<String, Object> form = new LinkedMultiValueMap<>();
-    form.add("chat_id", chatId.toString());
-    form.add("parse_mode", TELEGRAM_PARSE_MODE);
-    if (StringUtils.isNotBlank(caption)) {
-      form.add("caption", caption);
-    }
-    if (StringUtils.isNotBlank(replyMarkupJson)) {
-      form.add("reply_markup", replyMarkupJson);
-    }
-    form.add("photo", new ByteArrayResource(photoBytes) {
-      @Override
-      public String getFilename() {
-        return "image.jpg";
-      }
-    });
-
-    try {
-      telegramClient.post()
-          .uri("/bot{token}/sendPhoto", botToken)
-          .contentType(MediaType.MULTIPART_FORM_DATA)
-          .body(form)
-          .retrieve()
-          .toBodilessEntity();
-      return true;
-    } catch (final RuntimeException ex) {
-      log.error("Failed to send Telegram photo response to chat {}", chatId, ex);
-      return false;
-    }
-  }
-
-  private void sendNewsReply(final Long chatId, final String text, final byte[] photoBytes) {
-    if (StringUtils.isBlank(text)) {
-      return;
-    }
-
-    final String copyImageToken = photoBytes != null && photoBytes.length > 0
-        ? BotUtils.registerCopyImagePayload(text, photoBytes)
-        : null;
-    final String replyMarkupJson = BotUtils.buildNewsReplyMarkup(
-        photoBytes != null && photoBytes.length > 0,
-        copyImageToken,
-        COPY_IMG_CALLBACK_PREFIX);
-
-    sendReply(chatId, text, photoBytes, replyMarkupJson);
-  }
-
   private void handleCallbackQuery(final CallbackQuery callbackQuery) {
     if (callbackQuery == null || StringUtils.isBlank(callbackQuery.getData())
         || callbackQuery.getMessage() == null) {
@@ -793,54 +612,24 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
     }
 
     final String data = callbackQuery.getData();
-    if (!data.startsWith(COPY_IMG_CALLBACK_PREFIX)) {
+    if (!data.startsWith(BotSenderService.COPY_IMG_CALLBACK_PREFIX)) {
       return;
     }
 
-    final String token = data.substring(COPY_IMG_CALLBACK_PREFIX.length());
+    final String token = data.substring(BotSenderService.COPY_IMG_CALLBACK_PREFIX.length());
     final ReplyPayload payload = BotUtils.getCopyImagePayload(token);
     if (payload == null) {
-      answerCallbackQuery(callbackQuery.getId(), translationService.getTranslate("bot.callback.image.unavailable"));
+      botSenderService.answerCallbackQuery(callbackQuery.getId(), translationService.getTranslate("bot.callback.image.unavailable"));
       return;
     }
 
     final Long chatId = callbackQuery.getMessage().getChatId();
-    final boolean sent = sendCopiedImage(chatId, payload);
+    final boolean sent = botSenderService.sendCopiedImage(chatId, payload);
     if (sent) {
       BotUtils.removeCopyImagePayload(token);
-      answerCallbackQuery(callbackQuery.getId(), null);
+      botSenderService.answerCallbackQuery(callbackQuery.getId(), null);
     } else {
-      answerCallbackQuery(callbackQuery.getId(), translationService.getTranslate("bot.callback.image.failed"));
-    }
-  }
-
-  private boolean sendCopiedImage(final Long chatId, final ReplyPayload payload) {
-    if (payload == null || payload.photoBytes() == null || payload.photoBytes().length == 0) {
-      return false;
-    }
-    return sendPhotoReply(chatId, payload.photoBytes(), null, null);
-  }
-
-  private void answerCallbackQuery(final String callbackQueryId, final String text) {
-    if (StringUtils.isBlank(callbackQueryId)) {
-      return;
-    }
-
-    final LinkedMultiValueMap<String, String> form = new LinkedMultiValueMap<>();
-    form.add("callback_query_id", callbackQueryId);
-    if (StringUtils.isNotBlank(text)) {
-      form.add("text", text);
-    }
-
-    try {
-      telegramClient.post()
-          .uri("/bot{token}/answerCallbackQuery", botToken)
-          .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-          .body(form)
-          .retrieve()
-          .toBodilessEntity();
-    } catch (final RuntimeException ex) {
-      log.warn("Failed to answer Telegram callback query {}", callbackQueryId, ex);
+      botSenderService.answerCallbackQuery(callbackQuery.getId(), translationService.getTranslate("bot.callback.image.failed"));
     }
   }
 

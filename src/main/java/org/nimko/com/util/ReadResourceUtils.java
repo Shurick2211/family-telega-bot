@@ -6,6 +6,9 @@ import org.slf4j.LoggerFactory;
 
 public class ReadResourceUtils {
 
+  private ReadResourceUtils() {
+  }
+
   private static final Logger log = LoggerFactory.getLogger(ReadResourceUtils.class);
 
   public static String readResourceFile(final String resourcePath) {

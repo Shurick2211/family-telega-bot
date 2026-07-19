@@ -386,6 +386,11 @@ public final class BotUtils {
     return urls.isEmpty() ? null : urls.get(0);
   }
 
+
+  public static boolean hasAudioVideo(final Message message) {
+    return message.hasVideoNote() || message.hasVideo() || message.hasAudio() || message.hasVoice();
+  }
+
   public static String buildLinkContext(final List<String> urls) {
     final StringBuilder builder = new StringBuilder();
     for (final String url : urls) {
@@ -513,36 +518,6 @@ public final class BotUtils {
       contextList.remove(0);
     }
   }
-
-  public static final String HELP = """
-      Привіт! Я - твій чат-асистент, який допоможе тобі з різними завданнями. Ось які команди я розумію:
-      
-      ✨ **Основні команди:**
-      
-      🔹 **/hello** - Привіт від бота
-      
-      📰 **/news** - Поділися новиною або цікавою інформацією. Додай фото, якщо хочеш (опційно). Бот обговорить це з тобою!
-      
-      📄 **/articles** - Створи повноцінну статтю. Поділися посиланням або текстом, і бот згенерує детальну статтю та відправить її у форматі .docx!
-      
-      📝 **/text** - Транскрибуй аудіо або відео в текст. Пошли мені аудіо/відео файл або відповідь цією командою на аудіо/відеозаписом - я перетворю його на текст.
-      
-      🎵 **/audio** - Витяги аудіо з відеозаписи в MP3. Пошли мені відеофайл або відповідь цією командою на видеозаписом - я витяну звук.
-      
-      💬 **/help** - Показати цю інформацію
-      
-      🚀 **/start** - Почати роботу з ботом
-      
-      ---
-      
-      **Як це працює:**
-      • Всі твої питання будуть рішені за допомогою Gemini AI
-      • У групах бот автоматично транскрибує аудіо та відео
-      • Ти можеш поділитися посиланням на медіа - бот завантажить його у фоні
-      • Контекст бесід зберігається для кращого розуміння
-      
-      Готовий допомогти! 😊
-      """;
 
   public record ReplyPayload(String text, byte[] photoBytes) {
   }

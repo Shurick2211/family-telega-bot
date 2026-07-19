@@ -6,6 +6,9 @@ import org.telegram.telegrambots.meta.api.objects.message.Message;
 
 public class TranscribedUtils {
 
+  private TranscribedUtils() {
+  }
+
   public static String getTranscribed(final boolean hasVoice, final Message message, final byte[] rawAudioBytes, final AiChatService aiChatService) {
 //    final String audioMimeType = hasVoice ? "audio/mp3" : resolveAudioMimeType(message);
     return aiChatService.transcribeAudio(rawAudioBytes,  "audio/mp3");
