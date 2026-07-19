@@ -1,7 +1,7 @@
 package org.nimko.com.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.util.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 
 @ConfigurationProperties(prefix = "telegram.bot")
 public record TelegramBotProperties(
@@ -14,6 +14,6 @@ public record TelegramBotProperties(
     String downloaderEndpoint) {
 
   public boolean isConfigured() {
-    return StringUtils.hasText(username) && StringUtils.hasText(token);
+    return StringUtils.isNotBlank(username) && StringUtils.isNotBlank(token);
   }
 }

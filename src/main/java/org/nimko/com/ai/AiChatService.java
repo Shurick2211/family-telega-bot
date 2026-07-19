@@ -8,7 +8,7 @@ import org.nimko.com.util.BotUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
-import org.springframework.util.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.web.client.RestClient;
 
 public class AiChatService {
@@ -72,7 +72,7 @@ public class AiChatService {
     }
 
     final double temperature = 0.3d;
-    final String userPrompt = StringUtils.hasText(prompt) ? prompt.trim() : "";
+    final String userPrompt = StringUtils.isNotBlank(prompt) ? prompt.trim() : "";
     final var currentModel = properties.defaultModel();
 
     final ChatCompletionRequest request = new ChatCompletionRequest(
@@ -96,7 +96,7 @@ public class AiChatService {
               ? null
               : BotUtils.extractContent(response.choices().get(0).message());
 
-      if (!StringUtils.hasText(content)) {
+      if (StringUtils.isBlank(content)) {
         return "AI provider returned an empty response.";
       }
 
@@ -124,7 +124,7 @@ public class AiChatService {
   }
 
   private String defaultSystemPrompt() {
-    return StringUtils.hasText(properties.systemPrompt())
+    return StringUtils.isNotBlank(properties.systemPrompt())
         ? properties.systemPrompt()
         : "You are a concise assistant inside a Telegram bot.";
   }
@@ -136,7 +136,7 @@ public class AiChatService {
     }
 
     final double temperature = news ? 0.0d : 0.5d;
-    final String userPrompt = StringUtils.hasText(prompt)
+    final String userPrompt = StringUtils.isNotBlank(prompt)
         ? prompt.trim()
         : "Describe the image in detail.";
 
@@ -163,7 +163,7 @@ public class AiChatService {
               ? null
               : BotUtils.extractContent(response.choices().get(0).message());
 
-      if (!StringUtils.hasText(content)) {
+      if (StringUtils.isBlank(content)) {
         return "AI provider returned an empty response.";
       }
 

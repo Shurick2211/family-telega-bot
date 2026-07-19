@@ -24,7 +24,7 @@ import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.MediaType;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.util.LinkedMultiValueMap;
-import org.springframework.util.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.web.client.RestClient;
 import org.telegram.telegrambots.longpolling.interfaces.LongPollingUpdateConsumer;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
@@ -59,7 +59,7 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
       final boolean needAutoTranscribe, final long newsChatId, final String downloaderEndpoint) {
     this.botToken = telegramProperties.token();
     this.botUsername = telegramProperties.username();
-    this.telegramApiBaseUrl = StringUtils.hasText(telegramProperties.apiBaseUrl())
+    this.telegramApiBaseUrl = StringUtils.isNotBlank(telegramProperties.apiBaseUrl())
         ? telegramProperties.apiBaseUrl()
         : "https://api.telegram.org";
     this.aiChatService = aiChatService;
@@ -177,12 +177,12 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
       extractedAudioFromVideoBytes = null;
     }
 
-    final String normalizedText = StringUtils.hasText(text) ? text.trim() : "";
+    final String normalizedText = StringUtils.isNotBlank(text) ? text.trim() : "";
 
     log.info("Received Telegram message: author={} {}", message.getFrom().getId(),
         message.getFrom().getUserName());
 
-    if (!hasPhoto && !hasAudioMessage && !hasVideoNote && !hasVideo && !StringUtils.hasText(text)) {
+    if (!hasPhoto && !hasAudioMessage && !hasVideoNote && !hasVideo && StringUtils.isBlank(text)) {
       log.info("Received empty message");
       return;
     }
@@ -202,9 +202,9 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
       return;
     }
 
-    if (StringUtils.hasText(normalizedText) && BotUtils.containsMediaUrl(normalizedText)) {
+    if (StringUtils.isNotBlank(normalizedText) && BotUtils.containsMediaUrl(normalizedText)) {
       final String foundUrl = BotUtils.extractFirstUrl(normalizedText);
-      if (StringUtils.hasText(foundUrl)) {
+      if (StringUtils.isNotBlank(foundUrl)) {
         mediaDownloadService.submitDownload(message.getChatId(), foundUrl);
         sendTextReply(message.getChatId(), "Received media link, starting background download...");
         return;
@@ -215,7 +215,7 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
       if (groupChat && needAutoTranscribe) {
         final String transcribed = getTranscribed(true, message, extractedAudioFromVideoBytes,
             aiChatService);
-        if (!StringUtils.hasText(transcribed)) {
+        if (StringUtils.isBlank(transcribed)) {
           log.warn("Failed to transcribe the video audio.");
           return;
         }
@@ -229,7 +229,7 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
     if (hasAudioMessage && !isCommand && !isNews(chatId)) {
       if (groupChat && needAutoTranscribe) {
         final String transcribed = getTranscribed(hasVoice, message, rawAudioBytes, aiChatService);
-        if (!StringUtils.hasText(transcribed)) {
+        if (StringUtils.isBlank(transcribed)) {
           log.warn("Failed to transcribe the audio.");
           return;
         }
@@ -241,7 +241,7 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
     }
 
     if (groupChat) {
-      if (!StringUtils.hasText(text)) {
+      if (StringUtils.isBlank(text)) {
         log.info("Received empty text message in group chat");
         return;
       }
@@ -296,7 +296,6 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
     boolean isVoice = hasVoice;
 
     if ((message.hasVideoNote() || message.hasVideo() || message.hasAudio() || message.hasVoice())) {
-      targetMessage = message;
       if (message.hasVideoNote() || message.hasVideo()) {
         audioToUse = extractedAudioFromVideoBytes;
       } else if (message.hasVoice() || message.hasAudio()) {
@@ -315,7 +314,7 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
         if (replyContextOp.isPresent()) {
           final var replyContext = JSON.parseObject(replyContextOp.get());
           final var replyText = replyContext.getString("text");
-          if (StringUtils.hasText(replyText)) {
+          if (StringUtils.isNotBlank(replyText)) {
             sendTextReply(chatId, replyText);
             return;
           }
@@ -350,7 +349,7 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
       log.info("Transcribing audio...");
       final String transcribed = getTranscribed(isVoice, targetMessage, audioToUse, aiChatService);
 
-      if (!StringUtils.hasText(transcribed)) {
+      if (StringUtils.isBlank(transcribed)) {
         log.warn("Failed to transcribe the audio.");
         sendTextReply(chatId, "Failed to transcribe the audio. Please try again.");
         return;
@@ -425,7 +424,7 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
       final Long chatId, final boolean groupChat, final byte[] imageBytes,
       final String authorUsername, final int messageId) {
 
-    if (StringUtils.hasText(normalizedText) && normalizedText.startsWith("/")) {
+    if (StringUtils.isNotBlank(normalizedText) && normalizedText.startsWith("/")) {
       return new ReplyData("Bot does not know this command: " + normalizedText, false);
     }
 
@@ -434,14 +433,14 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
         ? BotUtils.stripBotPrefix(normalizedText, botUsername, currentHistory, groupChat)
         : normalizedText;
 
-    if (groupChat && StringUtils.hasText(normalizedText)) {
+    if (groupChat && StringUtils.isNotBlank(normalizedText)) {
       addTranscribedInContext(authorUsername, authorUsername,
           BotUtils.stripTextPrefix(normalizedText), chatId, messageId, chatContext);
     }
 
     if (hasPhoto) {
       final String imagePrompt =
-          StringUtils.hasText(normalizedText) ? prompt : "Describe the image in detail.";
+          StringUtils.isNotBlank(normalizedText) ? prompt : "Describe the image in detail.";
       log.info("Image prompt: {}", imagePrompt);
       return chatId == newsChatId && !groupChat
           ? new ReplyData(
@@ -450,7 +449,7 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
           : new ReplyData(aiChatService.askWithImage(imagePrompt, imageBytes, "image/jpeg"), false);
     }
 
-    if (!StringUtils.hasText(prompt)) {
+    if (StringUtils.isBlank(prompt)) {
       return null;
     }
 
@@ -473,7 +472,7 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
   private ReplyData newsAction(final String normalizedText, final boolean hasPhoto,
       final byte[] imageBytes) {
     final String promptNews = BotUtils.extractCommandPayload(normalizedText);
-    final String preparedPrompt = BotUtils.prepareNewsPrompt(StringUtils.hasText(promptNews)
+    final String preparedPrompt = BotUtils.prepareNewsPrompt(StringUtils.isNotBlank(promptNews)
         ? promptNews
         : "Перепиши новину за інформацією отримавши інформацію з прикріпленого посилання.");
 
@@ -488,8 +487,8 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
 
     if (message.getReplyToMessage() != null) {
       final String replyText = BotUtils.resolveIncomingText(message.getReplyToMessage());
-      if (StringUtils.hasText(replyText)) {
-        if (StringUtils.hasText(promptArticles)) {
+      if (StringUtils.isNotBlank(replyText)) {
+        if (StringUtils.isNotBlank(promptArticles)) {
           promptArticles = promptArticles + "\n\nДжерело/Матеріал:\n" + replyText;
         } else {
           promptArticles = replyText;
@@ -497,7 +496,7 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
       }
     }
 
-    final String preparedPrompt = BotUtils.prepareArticlesPrompt(StringUtils.hasText(promptArticles)
+    final String preparedPrompt = BotUtils.prepareArticlesPrompt(StringUtils.isNotBlank(promptArticles)
         ? promptArticles
         : "Напиши розгорнуту статтю за інформацією отримавши інформацію з прикріпленого посилання.");
 
@@ -505,7 +504,7 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
       sendTextReply(chatId, "Генерую статтю, зачекайте будь ласка...");
 
       final String generatedArticle = aiChatService.askArticle(preparedPrompt);
-      if (!StringUtils.hasText(generatedArticle) || generatedArticle.startsWith("AI provider")) {
+      if (StringUtils.isBlank(generatedArticle) || generatedArticle.startsWith("AI provider")) {
         sendTextReply(chatId, "Не вдалося згенерувати статтю: " + generatedArticle);
         return;
       }
@@ -569,7 +568,7 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
 
     try {
       final var bestPhoto = message.getPhoto().get(message.getPhoto().size() - 1);
-      if (bestPhoto == null || !StringUtils.hasText(bestPhoto.getFileId())) {
+      if (bestPhoto == null || StringUtils.isBlank(bestPhoto.getFileId())) {
         return null;
       }
 
@@ -581,7 +580,7 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
           .retrieve()
           .body(TelegramFileResponse.class);
 
-      if (response == null || response.result() == null || !StringUtils.hasText(
+      if (response == null || response.result() == null || StringUtils.isBlank(
           response.result().filePath())) {
         return null;
       }
@@ -614,7 +613,7 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
     }
 
     final String resolvedFileId = fileId;
-    if (!StringUtils.hasText(resolvedFileId)) {
+    if (StringUtils.isBlank(resolvedFileId)) {
       return null;
     }
 
@@ -627,7 +626,7 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
           .retrieve()
           .body(TelegramFileResponse.class);
 
-      if (response == null || response.result() == null || !StringUtils.hasText(
+      if (response == null || response.result() == null || StringUtils.isBlank(
           response.result().filePath())) {
         return null;
       }
@@ -653,7 +652,7 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
     if (photoBytes != null && photoBytes.length > 0) {
       final String caption = BotUtils.buildMarkdownCaption(text);
       if (sendPhotoReply(chatId, photoBytes, caption, replyMarkupJson)) {
-        if (!StringUtils.hasText(caption) && StringUtils.hasText(text)) {
+        if (StringUtils.isBlank(caption) && StringUtils.isNotBlank(text)) {
           sendTextReply(chatId, text);
         }
         return;
@@ -668,7 +667,7 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
 
   private boolean sendTextReply(final Long chatId, final String text,
       final String replyMarkupJson) {
-    if (!StringUtils.hasText(text)) {
+    if (StringUtils.isBlank(text)) {
       return false;
     }
 
@@ -676,7 +675,7 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
     form.add("chat_id", chatId.toString());
     form.add("text", text);
     form.add("parse_mode", TELEGRAM_PARSE_MODE);
-    if (StringUtils.hasText(replyMarkupJson)) {
+    if (StringUtils.isNotBlank(replyMarkupJson)) {
       form.add("reply_markup", replyMarkupJson);
     }
 
@@ -699,10 +698,10 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
     final LinkedMultiValueMap<String, Object> form = new LinkedMultiValueMap<>();
     form.add("chat_id", chatId.toString());
     form.add("parse_mode", TELEGRAM_PARSE_MODE);
-    if (StringUtils.hasText(caption)) {
+    if (StringUtils.isNotBlank(caption)) {
       form.add("caption", caption);
     }
-    if (StringUtils.hasText(replyMarkupJson)) {
+    if (StringUtils.isNotBlank(replyMarkupJson)) {
       form.add("reply_markup", replyMarkupJson);
     }
     form.add("photo", new ByteArrayResource(photoBytes) {
@@ -727,7 +726,7 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
   }
 
   private void sendNewsReply(final Long chatId, final String text, final byte[] photoBytes) {
-    if (!StringUtils.hasText(text)) {
+    if (StringUtils.isBlank(text)) {
       return;
     }
 
@@ -743,7 +742,7 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
   }
 
   private void handleCallbackQuery(final CallbackQuery callbackQuery) {
-    if (callbackQuery == null || !StringUtils.hasText(callbackQuery.getData())
+    if (callbackQuery == null || StringUtils.isBlank(callbackQuery.getData())
         || callbackQuery.getMessage() == null) {
       return;
     }
@@ -778,13 +777,13 @@ public class HelloHelpTelegramBot implements LongPollingUpdateConsumer {
   }
 
   private void answerCallbackQuery(final String callbackQueryId, final String text) {
-    if (!StringUtils.hasText(callbackQueryId)) {
+    if (StringUtils.isBlank(callbackQueryId)) {
       return;
     }
 
     final LinkedMultiValueMap<String, String> form = new LinkedMultiValueMap<>();
     form.add("callback_query_id", callbackQueryId);
-    if (StringUtils.hasText(text)) {
+    if (StringUtils.isNotBlank(text)) {
       form.add("text", text);
     }
 

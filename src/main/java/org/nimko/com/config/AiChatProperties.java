@@ -1,7 +1,7 @@
 package org.nimko.com.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.util.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 
 @ConfigurationProperties(prefix = "ai")
 public record AiChatProperties(
@@ -13,9 +13,9 @@ public record AiChatProperties(
     String systemPrompt) {
 
   public boolean isConfigured() {
-    return StringUtils.hasText(apiBaseUrl)
-        && StringUtils.hasText(apiKey)
-        && StringUtils.hasText(defaultModel)
-        && StringUtils.hasText(apiKeySecondary);
+    return StringUtils.isNotBlank(apiBaseUrl)
+        && StringUtils.isNotBlank(apiKey)
+        && StringUtils.isNotBlank(defaultModel)
+        && StringUtils.isNotBlank(apiKeySecondary);
   }
 }

@@ -1,7 +1,7 @@
 package org.nimko.com.util;
 
 import org.nimko.com.ai.AiChatService;
-import org.springframework.util.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.telegram.telegrambots.meta.api.objects.message.Message;
 
 public class TranscribedUtils {
@@ -19,7 +19,7 @@ public class TranscribedUtils {
       return "audio/ogg";
     }
     if (message.hasAudio() && message.getAudio() != null
-        && StringUtils.hasText(message.getAudio().getMimeType())) {
+        && StringUtils.isNotBlank(message.getAudio().getMimeType())) {
       return message.getAudio().getMimeType();
     }
     if (message.hasVideoNote()) {

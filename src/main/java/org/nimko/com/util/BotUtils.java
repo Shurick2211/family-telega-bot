@@ -20,7 +20,7 @@ import java.util.regex.Pattern;
 import org.nimko.com.ai.AiChatService.ChatMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.util.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.telegram.telegrambots.meta.api.objects.User;
 import org.telegram.telegrambots.meta.api.objects.message.Message;
 
@@ -50,7 +50,7 @@ public final class BotUtils {
 
   public static boolean hasUserContent(final Message message) {
     return message != null
-        && (message.hasText() || StringUtils.hasText(message.getCaption())
+        && (message.hasText() || StringUtils.isNotBlank(message.getCaption())
         || message.hasPhoto() || message.hasVoice() || message.hasAudio()
         || message.hasVideoNote());
   }
@@ -62,14 +62,14 @@ public final class BotUtils {
     if (message.hasText()) {
       return message.getText();
     }
-    if (StringUtils.hasText(message.getCaption())) {
+    if (StringUtils.isNotBlank(message.getCaption())) {
       return message.getCaption();
     }
     return null;
   }
 
   public static String normalizeCommand(final String text) {
-    if (!StringUtils.hasText(text)) {
+    if (StringUtils.isBlank(text)) {
       return text;
     }
     final int spaceIndex = text.indexOf(' ');
@@ -92,19 +92,19 @@ public final class BotUtils {
     if (user == null) {
       return "Unknown";
     }
-    if (StringUtils.hasText(user.getUserName())) {
+    if (StringUtils.isNotBlank(user.getUserName())) {
       return user.getUserName();
     }
     final String firstName = user.getFirstName();
-    if (StringUtils.hasText(firstName)) {
+    if (StringUtils.isNotBlank(firstName)) {
       final String lastName = user.getLastName();
-      return StringUtils.hasText(lastName) ? firstName + " " + lastName : firstName;
+      return StringUtils.isNotBlank(lastName) ? firstName + " " + lastName : firstName;
     }
     return user.getId().toString();
   }
 
   public static boolean startsWithBotPrefix(final String text) {
-    if (!StringUtils.hasText(text)) {
+    if (StringUtils.isBlank(text)) {
       return false;
     }
     return text.length() >= 3 && (text.regionMatches(true, 0, "бот", 0, 3)
@@ -114,7 +114,7 @@ public final class BotUtils {
   }
 
   public static String stripTextPrefix(final String text) {
-    if (!StringUtils.hasText(text)) {
+    if (StringUtils.isBlank(text)) {
       return text;
     }
     final String trimmed = text.trim();
@@ -135,13 +135,13 @@ public final class BotUtils {
 
   public static String stripBotPrefix(final String text, final String botUsername,
       final List<String> context, final boolean groupChat) {
-    if (!StringUtils.hasText(text)) {
+    if (StringUtils.isBlank(text)) {
       return text;
     }
 
     String prompt = text.trim();
 
-    if (StringUtils.hasText(botUsername)) {
+    if (StringUtils.isNotBlank(botUsername)) {
       final String mention = "@" + botUsername;
       if (prompt.regionMatches(true, 0, mention, 0, mention.length())) {
         prompt = prompt.substring(mention.length()).trim();
@@ -166,7 +166,7 @@ public final class BotUtils {
   }
 
   public static String removeUrls(final String text, final List<String> urls) {
-    if (!StringUtils.hasText(text)) {
+    if (StringUtils.isBlank(text)) {
       return text;
     }
     String cleaned = text;
@@ -249,7 +249,7 @@ public final class BotUtils {
   }
 
   public static String extractReadableText(final String html) {
-    if (!StringUtils.hasText(html)) {
+    if (StringUtils.isBlank(html)) {
       return null;
     }
     String cleaned = html
@@ -267,7 +267,7 @@ public final class BotUtils {
   }
 
   public static String stripTrailingPunctuation(final String value) {
-    if (!StringUtils.hasText(value)) {
+    if (StringUtils.isBlank(value)) {
       return value;
     }
     int endIndex = value.length();
@@ -278,21 +278,21 @@ public final class BotUtils {
   }
 
   public static String buildMarkdownCaption(final String text) {
-    if (!StringUtils.hasText(text)) {
+    if (StringUtils.isBlank(text)) {
       return null;
     }
     return text.length() <= TELEGRAM_CAPTION_LIMIT ? text : null;
   }
 
   public static String truncate(final String value, final int maxLength) {
-    if (!StringUtils.hasText(value) || maxLength <= 0 || value.length() <= maxLength) {
+    if (StringUtils.isBlank(value) || maxLength <= 0 || value.length() <= maxLength) {
       return value;
     }
     return value.substring(0, maxLength).trim();
   }
 
   public static String extractCommandPayload(final String text) {
-    if (!StringUtils.hasText(text)) {
+    if (StringUtils.isBlank(text)) {
       return "";
     }
     final int spaceIndex = text.indexOf(' ');
@@ -300,11 +300,11 @@ public final class BotUtils {
   }
 
   public static boolean isAddressedToBot(final String text, final String botUsername) {
-    if (!StringUtils.hasText(text)) {
+    if (StringUtils.isBlank(text)) {
       return false;
     }
     final String trimmed = text.trim();
-    if (StringUtils.hasText(botUsername)) {
+    if (StringUtils.isNotBlank(botUsername)) {
       final String mention = "@" + botUsername;
       if (trimmed.regionMatches(true, 0, mention, 0, mention.length())) {
         return true;
@@ -314,7 +314,7 @@ public final class BotUtils {
   }
 
   public static String prepareNewsPrompt(final String prompt) {
-    if (!StringUtils.hasText(prompt)) {
+    if (StringUtils.isBlank(prompt)) {
       return prompt;
     }
     final String trimmed = prompt.trim();
@@ -323,14 +323,14 @@ public final class BotUtils {
       return trimmed;
     }
     final String newsWithoutUrls = removeUrls(trimmed, urls);
-    final String basePrompt = StringUtils.hasText(newsWithoutUrls)
+    final String basePrompt = StringUtils.isNotBlank(newsWithoutUrls)
         ? newsWithoutUrls
         : "Перепиши новину за інформацією з посилання.";
 
     final String linkContext = buildLinkContext(urls);
     final String urlsListStr = String.join(", ", urls);
 
-    if (!StringUtils.hasText(linkContext)) {
+    if (StringUtils.isBlank(linkContext)) {
       return NEWS_LINK_INSTRUCTION
           + "\n\n"
           + newsPrompt()
@@ -351,7 +351,7 @@ public final class BotUtils {
   }
 
   public static String prepareArticlesPrompt(final String prompt) {
-    if (!StringUtils.hasText(prompt)) {
+    if (StringUtils.isBlank(prompt)) {
       return prompt;
     }
     final String trimmed = prompt.trim();
@@ -360,14 +360,14 @@ public final class BotUtils {
       return trimmed;
     }
     final String textWithoutUrls = removeUrls(trimmed, urls);
-    final String basePrompt = StringUtils.hasText(textWithoutUrls)
+    final String basePrompt = StringUtils.isNotBlank(textWithoutUrls)
         ? textWithoutUrls
         : "Напиши розгорнуту статтю за інформацією з посилання.";
 
     final String linkContext = buildLinkContext(urls);
     final String urlsListStr = String.join(", ", urls);
 
-    if (!StringUtils.hasText(linkContext)) {
+    if (StringUtils.isBlank(linkContext)) {
       return ARTICLES_LINK_INSTRUCTION
           + "\n\n"
           + articlesPrompt()
@@ -392,7 +392,7 @@ public final class BotUtils {
     final Matcher matcher = URL_PATTERN.matcher(text);
     while (matcher.find()) {
       final String url = stripTrailingPunctuation(matcher.group());
-      if (StringUtils.hasText(url)) {
+      if (StringUtils.isNotBlank(url)) {
         urls.add(url);
       }
     }
@@ -403,7 +403,7 @@ public final class BotUtils {
    * Returns true if text contains a URL that looks like TikTok, YouTube or Instagram link.
    */
   public static boolean containsMediaUrl(final String text) {
-    if (!StringUtils.hasText(text)) {
+    if (StringUtils.isBlank(text)) {
       return false;
     }
     final List<String> urls = extractUrls(text);
@@ -421,7 +421,7 @@ public final class BotUtils {
    * Extracts the first media URL (tiktok/youtube/instagram) from text or null if none.
    */
   public static String extractFirstUrl(final String text) {
-    if (!StringUtils.hasText(text)) {
+    if (StringUtils.isBlank(text)) {
       return null;
     }
     final List<String> urls = extractUrls(text);
@@ -439,7 +439,7 @@ public final class BotUtils {
     final StringBuilder builder = new StringBuilder();
     for (final String url : urls) {
       final String linkContext = fetchLinkContext(url);
-      if (!StringUtils.hasText(linkContext)) {
+      if (StringUtils.isBlank(linkContext)) {
         continue;
       }
       if (builder.length() > 0) {
@@ -461,7 +461,7 @@ public final class BotUtils {
           .build();
 
       final HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-      if (response.statusCode() < 200 || response.statusCode() >= 300 || !StringUtils.hasText(response.body())) {
+      if (response.statusCode() < 200 || response.statusCode() >= 300 || StringUtils.isBlank(response.body())) {
         return null;
       }
       return truncate(extractReadableText(response.body()), 3000);
@@ -486,7 +486,7 @@ public final class BotUtils {
       final List<List<Map<String, Object>>> keyboard = new ArrayList<>();
       final List<Map<String, Object>> row = new ArrayList<>();
 
-      if (hasImage && StringUtils.hasText(copyImageToken)) {
+      if (hasImage && StringUtils.isNotBlank(copyImageToken)) {
         final Map<String, Object> button = Map.of(
             "text", "📷 Отримати фото окремо",
             "callback_data", copyImageCallbackPrefix + copyImageToken
@@ -525,7 +525,7 @@ public final class BotUtils {
       return prompt;
     }
 
-    final String resolvedMimeType = StringUtils.hasText(mimeType) ? mimeType : "image/jpeg";
+    final String resolvedMimeType = StringUtils.isNotBlank(mimeType) ? mimeType : "image/jpeg";
     final String base64Data = Base64.getEncoder().encodeToString(mediaBytes);
 
     if (resolvedMimeType.startsWith("audio/")) {
