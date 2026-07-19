@@ -13,6 +13,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -544,5 +545,56 @@ public final class BotUtils {
       """;
 
   public record ReplyPayload(String text, byte[] photoBytes) {
+  }
+
+  public static Locale resolveLocale(final String langCode) {
+    if (langCode == null) {
+      return Locale.forLanguageTag("uk");
+    }
+    final String lower = langCode.toLowerCase();
+    if (lower.startsWith("uk") || lower.startsWith("ua")) {
+      return Locale.forLanguageTag("uk");
+    } else if (lower.startsWith("ru")) {
+      return Locale.forLanguageTag("ru");
+    } else if (lower.startsWith("en")) {
+      return Locale.forLanguageTag("en");
+    } else if (lower.startsWith("sk")) {
+      return Locale.forLanguageTag("sk");
+    }
+    return Locale.forLanguageTag("uk");
+  }
+
+  public static String detectGroupLanguage(final String currentText, final List<String> history) {
+    int ukCount = 0;
+    int ruCount = 0;
+
+    if (StringUtils.isNotBlank(currentText)) {
+      ukCount += countSpecificChars(currentText, "іїєґІЇЄҐ");
+      ruCount += countSpecificChars(currentText, "ыэъёЫЭЪЁ");
+    }
+
+    if (ukCount == 0 && ruCount == 0 && history != null) {
+      for (final String histJson : history) {
+        ukCount += countSpecificChars(histJson, "іїєґІЇЄҐ");
+        ruCount += countSpecificChars(histJson, "ыэъёЫЭЪЁ");
+      }
+    }
+
+    if (ukCount > ruCount) {
+      return "uk";
+    } else if (ruCount > ukCount) {
+      return "ru";
+    }
+    return null;
+  }
+
+  private static int countSpecificChars(final String text, final String charsToCount) {
+    int count = 0;
+    for (int i = 0; i < text.length(); i++) {
+      if (charsToCount.indexOf(text.charAt(i)) >= 0) {
+        count++;
+      }
+    }
+    return count;
   }
 }

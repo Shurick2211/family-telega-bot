@@ -174,4 +174,43 @@ public class BotUtilsTest {
         assertNotNull(prompt);
         assertTrue(prompt.contains("Ти — висококласний перекладач, редактор та журналіст."));
     }
+
+    @Test
+    public void testResolveLocale() {
+        assertEquals("uk", BotUtils.resolveLocale(null).getLanguage());
+        assertEquals("uk", BotUtils.resolveLocale("uk").getLanguage());
+        assertEquals("uk", BotUtils.resolveLocale("ua").getLanguage());
+        assertEquals("ru", BotUtils.resolveLocale("ru").getLanguage());
+        assertEquals("en", BotUtils.resolveLocale("en").getLanguage());
+        assertEquals("sk", BotUtils.resolveLocale("sk").getLanguage());
+        assertEquals("uk", BotUtils.resolveLocale("fr").getLanguage());
+    }
+
+    @Test
+    public void testDetectGroupLanguage_Ukrainian() {
+        String result = BotUtils.detectGroupLanguage("Привіт, як справи? У мене все добре і чудово.", null);
+        assertEquals("uk", result);
+    }
+
+    @Test
+    public void testDetectGroupLanguage_Russian() {
+        String result = BotUtils.detectGroupLanguage("Привет, как дела? У меня всё отлично, этот день хороший.", null);
+        assertEquals("ru", result);
+    }
+
+    @Test
+    public void testDetectGroupLanguage_HistoryFallback() {
+        java.util.List<String> history = java.util.List.of(
+            "{\"text\":\"Привет, как дела? У меня все хорошо.\"}",
+            "{\"text\":\"Тут русские буквы\"}"
+        );
+        String result = BotUtils.detectGroupLanguage("/help", history);
+        assertEquals("ru", result);
+    }
+
+    @Test
+    public void testDetectGroupLanguage_NoMatch() {
+        String result = BotUtils.detectGroupLanguage("Hello, how are you?", null);
+        assertNull(result);
+    }
 }

@@ -9,6 +9,7 @@ import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse.BodyHandlers;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.Locale;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,9 +35,10 @@ public class MediaDownloadService {
     this.downloaderEndpoint = downloaderEndpoint;
   }
 
-  public void submitDownload(final Long chatId, final String url) {
+  public void submitDownload(final Long chatId, final String url, final Locale locale) {
     executor.submit(() -> {
       try {
+        TranslationContext.setLocale(locale);
 
         final String payload = "{\"url\":\"" + url.replace("\"", "\\\"") + "\"}";
         final HttpRequest req = HttpRequest.newBuilder()
@@ -65,6 +67,8 @@ public class MediaDownloadService {
       } catch (final Exception e) {
         log.error("Unexpected error while downloading url {}", url, e);
         sender.sendText(chatId, "Error while downloading: " + e.getMessage());
+      } finally {
+        TranslationContext.clear();
       }
     });
   }
