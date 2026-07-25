@@ -15,8 +15,6 @@ public class AiChatService {
 
   private static final Logger log = LoggerFactory.getLogger(AiChatService.class);
   private static final int MAX_TOKENS = 8000;
-  private static final double FREQUENCY_PENALTY = 0.5d;
-  private static final double PRESENCE_PENALTY = 0.3d;
   private final String transcriptionModel;
 
   private final AiChatProperties properties;
@@ -84,7 +82,7 @@ public class AiChatService {
             new ChatMessage("system", systemPrompt),
             new ChatMessage("user", buildUserContentNew(userPrompt, null, null))
         ),
-        temperature, FREQUENCY_PENALTY, PRESENCE_PENALTY);
+        temperature);
 
     try {
       final ChatCompletionResponse response = restClient.post()
@@ -145,21 +143,13 @@ public class AiChatService {
 
     final var currentModel = model != null ? model : properties.defaultModel();
 
-    final ChatCompletionRequest request = news
-        ? new ChatCompletionRequest(
-            currentModel,
-            List.of(
-                new ChatMessage("system", BotUtils.newsPrompt()),
-                new ChatMessage("user", buildUserContentNew(userPrompt, imageBytes, mimeType))
-            ),
-            temperature, FREQUENCY_PENALTY, PRESENCE_PENALTY)
-        : new ChatCompletionRequest(
-            currentModel,
-            List.of(
-                new ChatMessage("system", defaultSystemPrompt()),
-                new ChatMessage("user", buildUserContentNew(userPrompt, imageBytes, mimeType))
-            ),
-            temperature);
+    final ChatCompletionRequest request = new ChatCompletionRequest(
+        currentModel,
+        List.of(
+            new ChatMessage("system", news ? BotUtils.newsPrompt() : defaultSystemPrompt()),
+            new ChatMessage("user", buildUserContentNew(userPrompt, imageBytes, mimeType))
+        ),
+        temperature);
 
     try {
       final ChatCompletionResponse response = restClient.post()
@@ -186,17 +176,11 @@ public class AiChatService {
   }
 
   public record ChatCompletionRequest(String model, List<ChatMessage> messages,
-                                      double temperature, int max_tokens,
-                                      double frequency_penalty, double presence_penalty) {
+                                      double temperature, int max_tokens) {
 
     public ChatCompletionRequest(final String model, final List<ChatMessage> messages,
         final double temperature) {
-      this(model, messages, temperature, MAX_TOKENS, 0.0d, 0.0d);
-    }
-
-    public ChatCompletionRequest(final String model, final List<ChatMessage> messages,
-        final double temperature, final double frequencyPenalty, final double presencePenalty) {
-      this(model, messages, temperature, MAX_TOKENS, frequencyPenalty, presencePenalty);
+      this(model, messages, temperature, MAX_TOKENS);
     }
   }
 
