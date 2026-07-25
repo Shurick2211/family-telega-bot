@@ -1,7 +1,5 @@
 package org.nimko.com.bot.commands;
 
-import java.util.List;
-import java.util.Map;
 import org.apache.commons.lang3.StringUtils;
 import org.nimko.com.ai.AiChatService;
 import org.nimko.com.bot.FamilyTelegramBot.ReplyData;
@@ -28,7 +26,7 @@ public class NewsCommand implements CommandProcess {
   @Override
   public ReplyData execute(final String normalizedText, final boolean hasPhoto, final byte[] imageBytes,
       final Message message, final Long chatId, final boolean hasVoice, final byte[] rawAudioBytes,
-      final byte[] extractedAudioFromVideoBytes, final boolean groupChat, final int messageId, final Map<Long, List<String>> chatContext) {
+      final byte[] extractedAudioFromVideoBytes, final boolean groupChat, final int messageId) {
     final String promptNews = BotUtils.extractCommandPayload(normalizedText);
     final String preparedPrompt = BotUtils.prepareNewsPrompt(StringUtils.isNotBlank(promptNews)
         ? promptNews

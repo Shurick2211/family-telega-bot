@@ -2,7 +2,6 @@ package org.nimko.com.util;
 
 import static org.nimko.com.util.ReadResourceUtils.readResourceFile;
 
-import com.alibaba.fastjson.JSONObject;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -21,6 +20,8 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.nimko.com.ai.AiChatService.ChatMessage;
+import org.nimko.com.entity.ChatContextEntity;
+import org.nimko.com.repository.ChatContextRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.commons.lang3.StringUtils;
@@ -498,26 +499,19 @@ public final class BotUtils {
         java.util.Map.of("type", "image_url", "image_url", java.util.Map.of("url", dataUrl)));
   }
 
-  public static void addTranscribedInContext(final String message, final String username, final String transcribed,
-      final Long chatId, final int messageId,final Map<Long, List<String>> chatContext) {
+  public static void addTranscribedInContext(final String telegramUser, final String username, final String transcribed,
+      final Long chatId, final int messageId,final ChatContextRepository chatContextRepository) {
     log.info("Saved context for {}", username);
-    final var json = new JSONObject();
-    json.put("userName", message);
-    json.put("messageId", messageId);
-    json.put("name", username);
-    json.put("text", transcribed);
-
-    addMessageToContext(chatId, json.toJSONString(), chatContext);
+    final var entity = new ChatContextEntity()
+        .setChatId(chatId)
+        .setUserName(telegramUser)
+        .setName(username)
+        .setMessageId(messageId)
+        .setMessage(transcribed)
+        ;
+    chatContextRepository.save(entity);
   }
 
-  private static void addMessageToContext(final Long chatId, final String jsonMessage, final Map<Long, List<String>> chatContext) {
-    final var contextList = chatContext.computeIfAbsent(chatId, k -> new ArrayList<>());
-    contextList.add(jsonMessage);
-
-    while (contextList.size() > MAX_CONTEXT_SIZE) {
-      contextList.remove(0);
-    }
-  }
 
   public record ReplyPayload(String text, byte[] photoBytes) {
   }

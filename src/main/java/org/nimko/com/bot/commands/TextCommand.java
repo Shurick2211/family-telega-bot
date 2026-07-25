@@ -3,13 +3,12 @@ package org.nimko.com.bot.commands;
 import static org.nimko.com.util.BotUtils.hasAudioVideo;
 import static org.nimko.com.util.TranscribedUtils.getTranscribed;
 
-import com.alibaba.fastjson.JSON;
-import java.util.List;
-import java.util.Map;
+import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.nimko.com.ai.AiChatService;
 import org.nimko.com.bot.BotSenderService;
 import org.nimko.com.bot.FamilyTelegramBot.ReplyData;
+import org.nimko.com.repository.ChatContextRepository;
 import org.nimko.com.services.AudioConverter;
 import org.nimko.com.services.TelegramFileService;
 import org.nimko.com.services.TranslationService;
@@ -21,6 +20,7 @@ import org.telegram.telegrambots.meta.api.objects.message.Message;
 
 @Service
 @Order(1)
+@RequiredArgsConstructor
 public class TextCommand implements CommandProcess {
 
   private static final Logger log = LoggerFactory.getLogger(TextCommand.class);
@@ -30,18 +30,7 @@ public class TextCommand implements CommandProcess {
   private final BotSenderService botSenderService;
   private final TranslationService translationService;
   private final TelegramFileService telegramFileService;
-
-  public TextCommand(final AiChatService aiChatService,
-      final AudioConverter audioConverter,
-      final BotSenderService botSenderService,
-      final TranslationService translationService,
-      final TelegramFileService telegramFileService) {
-    this.aiChatService = aiChatService;
-    this.audioConverter = audioConverter;
-    this.botSenderService = botSenderService;
-    this.translationService = translationService;
-    this.telegramFileService = telegramFileService;
-  }
+  private final ChatContextRepository chatContextRepository;
 
   @Override
   public boolean isCommand(final String command) {
@@ -49,9 +38,10 @@ public class TextCommand implements CommandProcess {
   }
 
   @Override
-  public ReplyData execute(final String normalizedText, final boolean hasPhoto, final byte[] imageBytes,
+  public ReplyData execute(final String normalizedText, final boolean hasPhoto,
+      final byte[] imageBytes,
       final Message message, final Long chatId, final boolean hasVoice, final byte[] rawAudioBytes,
-      final byte[] extractedAudioFromVideoBytes, final boolean groupChat, final int messageId, final Map<Long, List<String>> chatContext) {
+      final byte[] extractedAudioFromVideoBytes, final boolean groupChat, final int messageId) {
     Message targetMessage = message;
     byte[] audioToUse = null;
     boolean isVoice = hasVoice;
@@ -65,50 +55,44 @@ public class TextCommand implements CommandProcess {
       }
     } else if (message.getReplyToMessage() != null) {
       final Message replyTo = message.getReplyToMessage();
-      if (hasAudioVideo(replyTo) || (replyTo.hasDocument() && telegramFileService.isMediaDocument(replyTo))) {
+      if (hasAudioVideo(replyTo) || (replyTo.hasDocument() && telegramFileService.isMediaDocument(
+          replyTo))) {
         targetMessage = replyTo;
-        final var chatHistory = chatContext.get(chatId);
-        if (chatHistory != null) {
-          final var replyContextOp = chatHistory.stream()
-              .filter(j -> {
-                try {
-                  return (int) JSON.parseObject(j).getInteger("messageId") == replyTo.getMessageId();
-                } catch (final Exception e) {
-                  return false;
-                }
-              }).findFirst();
-          if (replyContextOp.isPresent()) {
-            final var replyContext = JSON.parseObject(replyContextOp.get());
-            final var replyText = replyContext.getString("text");
-            if (StringUtils.isNotBlank(replyText)) {
-              botSenderService.sendTextReply(chatId, replyText);
-              return null;
-            }
+        final var replyContextOp = chatContextRepository.findByChatIdAndMessageId(chatId,
+            targetMessage.getMessageId());
+        if (replyContextOp.isPresent()) {
+          final var replyText = replyContextOp.get().getMessage();
+          if (StringUtils.isNotBlank(replyText)) {
+            botSenderService.sendTextReply(chatId, replyText);
+            return null;
           }
         }
+      }
 
-        final byte[] replyAudioBytes;
-        if (replyTo.hasVoice() || replyTo.hasAudio() || (replyTo.hasDocument() && telegramFileService.isMediaDocument(replyTo))) {
-          replyAudioBytes = telegramFileService.downloadAudioMessage(replyTo);
-          isVoice = replyTo.hasVoice();
+      final byte[] replyAudioBytes;
+      if (replyTo.hasVoice() || replyTo.hasAudio() || (replyTo.hasDocument()
+          && telegramFileService.isMediaDocument(replyTo))) {
+        replyAudioBytes = telegramFileService.downloadAudioMessage(replyTo);
+        isVoice = replyTo.hasVoice();
+      } else {
+        replyAudioBytes = telegramFileService.downloadAudioMessage(replyTo);
+      }
+
+      if (replyAudioBytes != null && replyAudioBytes.length > 0) {
+        if (replyTo.hasVoice()) {
+          audioToUse = audioConverter.convertOggToMp3(replyAudioBytes);
+        } else if (replyTo.hasVideoNote() || replyTo.hasVideo() || (replyTo.hasDocument()
+            && telegramFileService.isMediaDocument(replyTo))) {
+          audioToUse = audioConverter.extractAudioFromVideo(replyAudioBytes);
         } else {
-          replyAudioBytes = telegramFileService.downloadAudioMessage(replyTo);
-        }
-        
-        if (replyAudioBytes != null && replyAudioBytes.length > 0) {
-          if (replyTo.hasVoice()) {
-            audioToUse = audioConverter.convertOggToMp3(replyAudioBytes);
-          } else if (replyTo.hasVideoNote() || replyTo.hasVideo() || (replyTo.hasDocument() && telegramFileService.isMediaDocument(replyTo))) {
-            audioToUse = audioConverter.extractAudioFromVideo(replyAudioBytes);
-          } else {
-            audioToUse = replyAudioBytes;
-          }
+          audioToUse = replyAudioBytes;
         }
       }
     }
 
     if (audioToUse == null || audioToUse.length == 0) {
-      botSenderService.sendTextReply(chatId, translationService.getTranslate("bot.text.reply.prompt"));
+      botSenderService.sendTextReply(chatId,
+          translationService.getTranslate("bot.text.reply.prompt"));
       return null;
     }
 
@@ -125,7 +109,8 @@ public class TextCommand implements CommandProcess {
       botSenderService.sendTextReply(chatId, transcribed);
     } catch (final Exception ex) {
       log.error("Error processing /text command for chat {}", chatId, ex);
-      botSenderService.sendTextReply(chatId, translationService.getTranslate("bot.text.error", ex.getMessage()));
+      botSenderService.sendTextReply(chatId,
+          translationService.getTranslate("bot.text.error", ex.getMessage()));
     }
     return null;
   }

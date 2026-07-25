@@ -1,15 +1,17 @@
 package org.nimko.com.bot;
 
+import static org.nimko.com.repository.ChatContextRepository.getTodayContext;
 import static org.nimko.com.util.BotUtils.addTranscribedInContext;
 import static org.nimko.com.util.TranscribedUtils.getTranscribed;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PreDestroy;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.nimko.com.ai.AiChatService;
 import org.nimko.com.bot.commands.CommandProcess;
-import org.nimko.com.config.TelegramBotProperties;
+import org.nimko.com.repository.ChatContextRepository;
 import org.nimko.com.services.AudioConverter;
 import org.nimko.com.services.MediaDownloadService;
 import org.nimko.com.services.TelegramFileService;
@@ -18,22 +20,18 @@ import org.nimko.com.services.TranslationContext;
 import java.util.Locale;
 import org.nimko.com.util.BotUtils;
 import org.nimko.com.util.BotUtils.ReplyPayload;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.apache.commons.lang3.StringUtils;
 import org.telegram.telegrambots.longpolling.interfaces.LongPollingUpdateConsumer;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
 import org.telegram.telegrambots.meta.api.objects.Update;
 
+@Slf4j
+@RequiredArgsConstructor
 public class FamilyTelegramBot implements LongPollingUpdateConsumer {
-
-  private static final Logger log = LoggerFactory.getLogger(FamilyTelegramBot.class);
 
   private final String botUsername;
   private final AiChatService aiChatService;
 
-  private final Map<Long, List<String>> chatContext = new ConcurrentHashMap<>();
   private final AudioConverter audioConverter;
   private final MediaDownloadService mediaDownloadService;
   private final boolean needAutoTranscribe;
@@ -41,27 +39,11 @@ public class FamilyTelegramBot implements LongPollingUpdateConsumer {
   private final BotSenderService botSenderService;
   private final List<CommandProcess> commandProcesses;
   private final TelegramFileService telegramFileService;
+  private final ChatContextRepository chatContextRepository;
+  private final ObjectMapper objectMapper;
 
   private final long newsChatId;
 
-  public FamilyTelegramBot(
-      final TelegramBotProperties telegramProperties,
-      final AiChatService aiChatService, final AudioConverter audioConverter,
-      final boolean needAutoTranscribe, final long newsChatId, final String downloaderEndpoint,
-      final TranslationService translationService,
-      final BotSenderService botSenderService, final List<CommandProcess> commandProcesses,
-      final TelegramFileService telegramFileService) {
-    this.botUsername = telegramProperties.username();
-    this.aiChatService = aiChatService;
-    this.audioConverter = audioConverter;
-    this.needAutoTranscribe = needAutoTranscribe;
-    this.newsChatId = newsChatId;
-    this.translationService = translationService;
-    this.botSenderService = botSenderService;
-    this.commandProcesses = commandProcesses;
-    this.telegramFileService = telegramFileService;
-    this.mediaDownloadService = new MediaDownloadService(botSenderService, downloaderEndpoint);
-  }
 
   @Override
   public void consume(final List<Update> updates) {
@@ -115,8 +97,7 @@ public class FamilyTelegramBot implements LongPollingUpdateConsumer {
 
       String langCode = null;
       if (BotUtils.isGroupChat(message)) {
-        final List<String> history = chatContext.get(chatId);
-        langCode = BotUtils.detectGroupLanguage(text, history);
+        langCode = BotUtils.detectGroupLanguage(text, getTodayContext(chatContextRepository, objectMapper, chatId));
       }
 
       if (langCode == null && message.getFrom() != null) {
@@ -148,8 +129,11 @@ public class FamilyTelegramBot implements LongPollingUpdateConsumer {
     final int messageId = message.getMessageId();
 
     final byte[] imageBytes = hasPhoto ? telegramFileService.downloadBestPhoto(message) : null;
-    final byte[] downloadedAudioBytes = hasAudioMessage ? telegramFileService.downloadAudioMessage(message) : null;
-    final byte[] downloadedVideoBytes = (hasVideoNote || hasVideo || (hasDocument && telegramFileService.isMediaDocument(message))) ? telegramFileService.downloadAudioMessage(message) : null;
+    final byte[] downloadedAudioBytes =
+        hasAudioMessage ? telegramFileService.downloadAudioMessage(message) : null;
+    final byte[] downloadedVideoBytes =
+        (hasVideoNote || hasVideo || (hasDocument && telegramFileService.isMediaDocument(message)))
+            ? telegramFileService.downloadAudioMessage(message) : null;
 
     final byte[] rawAudioBytes;
     if (hasVoice && downloadedAudioBytes != null && downloadedAudioBytes.length > 0) {
@@ -160,7 +144,8 @@ public class FamilyTelegramBot implements LongPollingUpdateConsumer {
     }
 
     final byte[] extractedAudioFromVideoBytes;
-    if ((hasVideoNote || hasVideo) && downloadedVideoBytes != null && downloadedVideoBytes.length > 0) {
+    if ((hasVideoNote || hasVideo) && downloadedVideoBytes != null
+        && downloadedVideoBytes.length > 0) {
       log.info("Extracting audio track from video...");
       extractedAudioFromVideoBytes = audioConverter.extractAudioFromVideo(downloadedVideoBytes);
     } else {
@@ -181,11 +166,12 @@ public class FamilyTelegramBot implements LongPollingUpdateConsumer {
       log.warn("Failed to download the image.");
       return;
     }
-    if (hasAudioMessage && (rawAudioBytes == null || rawAudioBytes.length == 0) && isNoNews(chatId)) {
+    if (hasAudioMessage && (rawAudioBytes == null || rawAudioBytes.length == 0) && isNoNews(
+        chatId)) {
       log.warn("Failed to download or convert audio.");
       return;
     }
-    
+
     if ((hasVideoNote || hasVideo) && (extractedAudioFromVideoBytes == null
         || extractedAudioFromVideoBytes.length == 0) && isNoNews(chatId)) {
       log.warn("Failed to extract audio from video.");
@@ -217,8 +203,9 @@ public class FamilyTelegramBot implements LongPollingUpdateConsumer {
           return;
         }
 
-        addTranscribedInContext(BotUtils.getSenderName(message.getFrom()), BotUtils.getSenderName(message.getFrom()),
-            "[video] " + transcribed, chatId, messageId,chatContext);
+        addTranscribedInContext(BotUtils.getSenderName(message.getFrom()),
+            BotUtils.getSenderName(message.getFrom()),
+            "[video] " + transcribed, chatId, messageId, chatContextRepository);
       }
       return;
     }
@@ -231,8 +218,9 @@ public class FamilyTelegramBot implements LongPollingUpdateConsumer {
           return;
         }
 
-        addTranscribedInContext(BotUtils.getSenderName(message.getFrom()), BotUtils.getSenderName(message.getFrom()),
-            "[audio] " + transcribed, chatId, messageId,chatContext);
+        addTranscribedInContext(BotUtils.getSenderName(message.getFrom()),
+            BotUtils.getSenderName(message.getFrom()),
+            "[audio] " + transcribed, chatId, messageId, chatContextRepository);
       }
       return;
     }
@@ -243,17 +231,20 @@ public class FamilyTelegramBot implements LongPollingUpdateConsumer {
         return;
       }
 
-      if (!BotUtils.isAddressedToBot(text, botUsername) && !BotUtils.isReplyToBot(message, botUsername) && !isCommand) {
-        addTranscribedInContext(BotUtils.getSenderName(message.getFrom()), BotUtils.getSenderName(message.getFrom()),
-            text, chatId, messageId, chatContext);
+      if (!BotUtils.isAddressedToBot(text, botUsername) && !BotUtils.isReplyToBot(message,
+          botUsername) && !isCommand) {
+        addTranscribedInContext(BotUtils.getSenderName(message.getFrom()),
+            BotUtils.getSenderName(message.getFrom()),
+            text, chatId, messageId, chatContextRepository);
         log.info("Saved context in group chat");
         return;
       }
     }
 
-    final ReplyData response = commandProcesses.stream().filter(c -> c.isCommand(BotUtils.normalizeCommand(normalizedText)))
+    final ReplyData response = commandProcesses.stream()
+        .filter(c -> c.isCommand(BotUtils.normalizeCommand(normalizedText)))
         .findFirst().map(c -> c.execute(normalizedText, hasPhoto, imageBytes, message, chatId,
-            hasVoice, rawAudioBytes, extractedAudioFromVideoBytes, groupChat, messageId, chatContext))
+            hasVoice, rawAudioBytes, extractedAudioFromVideoBytes, groupChat, messageId))
         .orElse(null);
 
     if (response != null) {
@@ -283,7 +274,8 @@ public class FamilyTelegramBot implements LongPollingUpdateConsumer {
     final String token = data.substring(BotSenderService.COPY_IMG_CALLBACK_PREFIX.length());
     final ReplyPayload payload = BotUtils.getCopyImagePayload(token);
     if (payload == null) {
-      botSenderService.answerCallbackQuery(callbackQuery.getId(), translationService.getTranslate("bot.callback.image.unavailable"));
+      botSenderService.answerCallbackQuery(callbackQuery.getId(),
+          translationService.getTranslate("bot.callback.image.unavailable"));
       return;
     }
 
@@ -293,7 +285,8 @@ public class FamilyTelegramBot implements LongPollingUpdateConsumer {
       BotUtils.removeCopyImagePayload(token);
       botSenderService.answerCallbackQuery(callbackQuery.getId(), null);
     } else {
-      botSenderService.answerCallbackQuery(callbackQuery.getId(), translationService.getTranslate("bot.callback.image.failed"));
+      botSenderService.answerCallbackQuery(callbackQuery.getId(),
+          translationService.getTranslate("bot.callback.image.failed"));
     }
   }
 
@@ -302,10 +295,10 @@ public class FamilyTelegramBot implements LongPollingUpdateConsumer {
     mediaDownloadService.shutdown();
   }
 
-  @Scheduled(cron = "0 0 2 * * *")
-  private void clearChatContext() {
-    chatContext.clear();
-  }
+//  @Scheduled(cron = "0 0 2 * * *")
+//  private void clearChatContext() {
+//
+//  }
 
   public record ReplyData(String text, boolean newsResponse) {
 
