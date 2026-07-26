@@ -24,6 +24,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.telegram.telegrambots.longpolling.interfaces.LongPollingUpdateConsumer;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
 import org.telegram.telegrambots.meta.api.objects.Update;
+import org.telegram.telegrambots.meta.api.objects.reactions.MessageReactionUpdated;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -61,6 +62,11 @@ public class FamilyTelegramBot implements LongPollingUpdateConsumer {
           continue;
         }
 
+        if (update.getMessageReaction() != null) {
+          handleMessageReaction(update.getMessageReaction());
+          continue;
+        }
+
         if (!update.hasMessage()) {
           continue;
         }
@@ -86,6 +92,12 @@ public class FamilyTelegramBot implements LongPollingUpdateConsumer {
 
     if (update.hasCallbackQuery() && update.getCallbackQuery() != null) {
       final var from = update.getCallbackQuery().getFrom();
+      final String langCode = from != null ? from.getLanguageCode() : null;
+      return BotUtils.resolveLocale(langCode);
+    }
+
+    if (update.getMessageReaction() != null) {
+      final var from = update.getMessageReaction().getUser();
       final String langCode = from != null ? from.getLanguageCode() : null;
       return BotUtils.resolveLocale(langCode);
     }
@@ -259,6 +271,10 @@ public class FamilyTelegramBot implements LongPollingUpdateConsumer {
 
   private boolean isNoNews(final Long chatId) {
     return chatId != newsChatId;
+  }
+
+  private void handleMessageReaction(final MessageReactionUpdated messageReaction) {
+    commandProcesses.forEach(c -> c.handleReaction(messageReaction));
   }
 
   private void handleCallbackQuery(final CallbackQuery callbackQuery) {

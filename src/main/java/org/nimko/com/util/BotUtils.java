@@ -19,6 +19,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import lombok.experimental.UtilityClass;
 import org.nimko.com.ai.AiChatService.ChatMessage;
 import org.nimko.com.entity.ChatContextEntity;
 import org.nimko.com.repository.ChatContextRepository;
@@ -26,8 +27,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.commons.lang3.StringUtils;
 import org.telegram.telegrambots.meta.api.objects.User;
+import org.telegram.telegrambots.meta.api.objects.chat.Chat;
 import org.telegram.telegrambots.meta.api.objects.message.Message;
+import org.telegram.telegrambots.meta.api.objects.reactions.ReactionType;
+import org.telegram.telegrambots.meta.api.objects.reactions.ReactionTypeEmoji;
+import org.telegram.telegrambots.meta.api.objects.reactions.ReactionTypeCustomEmoji;
 
+@UtilityClass
 public final class BotUtils {
 
   private static final Logger log = LoggerFactory.getLogger(BotUtils.class);
@@ -41,9 +47,6 @@ public final class BotUtils {
   public static final int TELEGRAM_CAPTION_LIMIT = 1024;
 
   public static final String[] BOT_NAMES = {"айріс", "айрис", "iris", "бот"};
-
-  private BotUtils() {
-  }
 
   public static boolean hasUserContent(final Message message) {
     return message != null
@@ -80,9 +83,34 @@ public final class BotUtils {
       return false;
     }
     final String type = message.getChat().getType();
+    return groupOrSuperSuperGroup(message.getChat(), type);
+  }
+
+  public static boolean isGroupChat(final Chat chat) {
+    if (chat == null) {
+      return false;
+    }
+    final String type = chat.getType();
+    return groupOrSuperSuperGroup(chat, type);
+  }
+
+  private static boolean groupOrSuperSuperGroup(final Chat chat, final String type) {
     return "group".equalsIgnoreCase(type) || "supergroup".equalsIgnoreCase(type)
-        || Boolean.TRUE.equals(message.getChat().isGroupChat())
-        || Boolean.TRUE.equals(message.getChat().isSuperGroupChat());
+        || Boolean.TRUE.equals(chat.isGroupChat())
+        || Boolean.TRUE.equals(chat.isSuperGroupChat());
+  }
+
+  public static String getReactionString(final ReactionType reaction) {
+    if (reaction == null) {
+      return "";
+    }
+    if (reaction instanceof final ReactionTypeEmoji emojiReaction) {
+      return emojiReaction.getEmoji();
+    }
+    if (reaction instanceof final ReactionTypeCustomEmoji customEmojiReaction) {
+      return customEmojiReaction.getCustomEmojiId();
+    }
+    return reaction.getType();
   }
 
   public static String getSenderName(final User user) {
