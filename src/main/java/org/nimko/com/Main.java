@@ -17,6 +17,7 @@ import org.nimko.com.services.TelegramFileService;
 import org.nimko.com.services.TranslationService;
 import org.nimko.com.bot.BotSenderService;
 import org.nimko.com.repository.ChatContextRepository;
+import org.nimko.com.repository.DailySummaryChatRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -61,6 +62,7 @@ public class Main {
       final List<CommandProcess> commandProcesses,
       final TelegramFileService telegramFileService,
       final ChatContextRepository chatContextRepository,
+      final DailySummaryChatRepository daylySummaryChatRepository,
       final ObjectMapper objectMapper
   ) {
     return args -> {
@@ -77,7 +79,7 @@ public class Main {
             new FamilyTelegramBot(telegramProperties.username(), aiChatService, audioConverter,
                 mediaDownloadService, telegramProperties.needAutoTranscribe(), translationService,
                 botSenderService, commandProcesses, telegramFileService, chatContextRepository,
-                objectMapper, telegramProperties.newsChatId()));
+                daylySummaryChatRepository, objectMapper, telegramProperties.newsChatId()));
         log.info("Telegram bot registered: {}", telegramProperties.username());
         log.info("AI model configured: {}", aiProperties.defaultModel());
       } catch (final Exception ex) {

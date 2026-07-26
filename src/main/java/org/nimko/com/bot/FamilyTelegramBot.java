@@ -15,7 +15,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.nimko.com.ai.AiChatService;
 import org.nimko.com.bot.commands.CommandProcess;
+import org.nimko.com.entity.DaylySummaryChatEntity;
 import org.nimko.com.repository.ChatContextRepository;
+import org.nimko.com.repository.DailySummaryChatRepository;
 import org.nimko.com.services.AudioConverter;
 import org.nimko.com.services.MediaDownloadService;
 import org.nimko.com.services.TelegramFileService;
@@ -47,6 +49,7 @@ public class FamilyTelegramBot implements LongPollingUpdateConsumer {
   private final List<CommandProcess> commandProcesses;
   private final TelegramFileService telegramFileService;
   private final ChatContextRepository chatContextRepository;
+  private final DailySummaryChatRepository daylySummaryChatRepository;
   private final ObjectMapper objectMapper;
 
   private final long newsChatId;
@@ -104,7 +107,8 @@ public class FamilyTelegramBot implements LongPollingUpdateConsumer {
 
       String langCode = null;
       if (BotUtils.isGroupChat(message)) {
-        langCode = BotUtils.detectGroupLanguage(text, getTodayContext(chatContextRepository, objectMapper, chatId));
+        langCode = BotUtils.detectGroupLanguage(text,
+            getTodayContext(chatContextRepository, objectMapper, chatId));
       }
 
       if (langCode == null && message.getFrom() != null) {
@@ -324,10 +328,13 @@ public class FamilyTelegramBot implements LongPollingUpdateConsumer {
         continue;
       }
 
-      final String prompt = BotUtils.stripBotPrefix(DAILY_SUMMARY_PROMPT, botUsername, context, true);
+      final String prompt = BotUtils.stripBotPrefix(DAILY_SUMMARY_PROMPT, botUsername, context,
+          true);
       final String summary = aiChatService.ask(prompt);
       if (StringUtils.isNotBlank(summary)) {
         botSenderService.sendReply(chatId, summary, null);
+        daylySummaryChatRepository.save(new DaylySummaryChatEntity()
+            .setChatId(chatId).setText(summary));
       }
     }
   }
