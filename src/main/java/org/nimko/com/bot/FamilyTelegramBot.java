@@ -6,18 +6,12 @@ import static org.nimko.com.util.TranscribedUtils.getTranscribed;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PreDestroy;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.ZoneId;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.nimko.com.ai.AiChatService;
 import org.nimko.com.bot.commands.CommandProcess;
-import org.nimko.com.entity.DaylySummaryChatEntity;
 import org.nimko.com.repository.ChatContextRepository;
-import org.nimko.com.repository.DailySummaryChatRepository;
 import org.nimko.com.services.AudioConverter;
 import org.nimko.com.services.MediaDownloadService;
 import org.nimko.com.services.TelegramFileService;
@@ -27,7 +21,6 @@ import java.util.Locale;
 import org.nimko.com.util.BotUtils;
 import org.nimko.com.util.BotUtils.ReplyPayload;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.telegram.telegrambots.longpolling.interfaces.LongPollingUpdateConsumer;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
 import org.telegram.telegrambots.meta.api.objects.Update;
@@ -36,9 +29,6 @@ import org.telegram.telegrambots.meta.api.objects.Update;
 @RequiredArgsConstructor
 public class FamilyTelegramBot implements LongPollingUpdateConsumer {
 
-  public static final int TIME_AVALIBLE_HISTORY_CONTEXT = 30;
-  private static final String DAILY_SUMMARY_PROMPT = "Подведи юмористические (шуточные) итоги дня";
-  private static final String MONTHLY_SUMMARY_PROMPT = "Подведи юмористические (шуточные) итоги месяца";
   private final String botUsername;
   private final AiChatService aiChatService;
 
@@ -50,7 +40,6 @@ public class FamilyTelegramBot implements LongPollingUpdateConsumer {
   private final List<CommandProcess> commandProcesses;
   private final TelegramFileService telegramFileService;
   private final ChatContextRepository chatContextRepository;
-  private final DailySummaryChatRepository daylySummaryChatRepository;
   private final ObjectMapper objectMapper;
 
   private final long newsChatId;
@@ -305,71 +294,6 @@ public class FamilyTelegramBot implements LongPollingUpdateConsumer {
   @PreDestroy
   private void destroy() {
     mediaDownloadService.shutdown();
-  }
-
-  @Scheduled(cron = "0 0 2 * * *")
-  private void clearChatContext() {
-    final Instant monthAgo = Instant.now().minus(TIME_AVALIBLE_HISTORY_CONTEXT, ChronoUnit.DAYS);
-    chatContextRepository.deleteByCreatedAtBefore(monthAgo);
-    log.info("Cleared chat context entries older than {}", monthAgo);
-  }
-
-  @Scheduled(cron = "0 30 21 * * *")
-  private void sendDailySummary() {
-    final LocalDate today = LocalDate.now(ZoneId.systemDefault());
-    final Instant startOfDay = today.atStartOfDay(ZoneId.systemDefault()).toInstant();
-    final Instant endOfDay = today.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant();
-
-    final List<Long> chatIds = chatContextRepository.findDistinctChatIdByCreatedAtBetweenAndGroupChatTrue(
-        startOfDay, endOfDay);
-
-    for (final Long chatId : chatIds) {
-      final List<String> context = getTodayContext(chatContextRepository, objectMapper, chatId);
-      if (context == null || context.isEmpty()) {
-        continue;
-      }
-
-      final String prompt = BotUtils.stripBotPrefix(DAILY_SUMMARY_PROMPT, botUsername, context,
-          true);
-      final String summary = aiChatService.ask(prompt);
-      if (StringUtils.isNotBlank(summary)) {
-        botSenderService.sendReply(chatId, summary, null);
-        daylySummaryChatRepository.save(new DaylySummaryChatEntity()
-            .setChatId(chatId).setText(summary));
-      }
-    }
-  }
-
-  @Scheduled(cron = "0 45 21 * * *")
-  private void sendMonthlySummary() {
-    final LocalDate today = LocalDate.now(ZoneId.systemDefault());
-    if (!today.equals(today.withDayOfMonth(today.lengthOfMonth()))) {
-      return;
-    }
-
-    final Instant startOfMonth = today.withDayOfMonth(1).atStartOfDay(ZoneId.systemDefault())
-        .toInstant();
-    final Instant endOfMonth = today.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant();
-
-    final List<Long> chatIds = daylySummaryChatRepository.findDistinctChatIdByCreatedAtBetween(
-        startOfMonth, endOfMonth);
-
-    for (final Long chatId : chatIds) {
-      final List<String> context = daylySummaryChatRepository
-          .findByChatIdAndCreatedAtBetweenOrderByIdAsc(chatId, startOfMonth, endOfMonth).stream()
-          .map(DaylySummaryChatEntity::getText)
-          .toList();
-      if (context.isEmpty()) {
-        continue;
-      }
-
-      final String prompt = BotUtils.stripBotPrefix(MONTHLY_SUMMARY_PROMPT, botUsername, context,
-          true);
-      final String summary = aiChatService.ask(prompt);
-      if (StringUtils.isNotBlank(summary)) {
-        botSenderService.sendReply(chatId, summary, null);
-      }
-    }
   }
 
   public record ReplyData(String text, boolean newsResponse) {

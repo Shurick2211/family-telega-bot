@@ -79,7 +79,7 @@ public class Main {
             new FamilyTelegramBot(telegramProperties.username(), aiChatService, audioConverter,
                 mediaDownloadService, telegramProperties.needAutoTranscribe(), translationService,
                 botSenderService, commandProcesses, telegramFileService, chatContextRepository,
-                daylySummaryChatRepository, objectMapper, telegramProperties.newsChatId()));
+                objectMapper, telegramProperties.newsChatId()));
         log.info("Telegram bot registered: {}", telegramProperties.username());
         log.info("AI model configured: {}", aiProperties.defaultModel());
       } catch (final Exception ex) {

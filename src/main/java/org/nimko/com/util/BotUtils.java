@@ -40,7 +40,6 @@ public final class BotUtils {
   private static final ConcurrentMap<String, ReplyPayload> COPY_IMG_PAYLOADS = new ConcurrentHashMap<>();
   public static final int TELEGRAM_CAPTION_LIMIT = 1024;
 
-  public static final int MAX_CONTEXT_SIZE = 50;
   public static final String[] BOT_NAMES = {"айріс", "айрис", "iris", "бот"};
 
   private BotUtils() {
