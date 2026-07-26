@@ -12,4 +12,6 @@ public interface DailySummaryChatRepository extends JpaRepository<DaylySummaryCh
   List<DaylySummaryChatEntity> findByChatIdAndCreatedAtBetweenOrderByIdAsc(Long chatId,
       Instant createdAtFrom, Instant createdAtTo);
 
+  List<Long> findDistinctChatIdByCreatedAtBetween(Instant createdAtFrom, Instant createdAtTo);
+
 }
