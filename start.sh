@@ -13,4 +13,6 @@ if [ -f .env ]; then
   done < .env
 fi
 
-java -jar test-bot-project-1.0-SNAPSHOT.jar
+java -XX:+UseSerialGC -Xss512k -Xms64m -Xmx1024m -jar test-bot-project-1.0-SNAPSHOT.jar
+
+sv restart vdown
