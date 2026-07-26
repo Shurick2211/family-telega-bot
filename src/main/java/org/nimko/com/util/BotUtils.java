@@ -500,7 +500,8 @@ public final class BotUtils {
   }
 
   public static void addTranscribedInContext(final String telegramUser, final String username, final String transcribed,
-      final Long chatId, final int messageId,final ChatContextRepository chatContextRepository) {
+      final Long chatId, final int messageId, final ChatContextRepository chatContextRepository,
+      final boolean groupChat) {
     log.info("Saved context for {}", username);
     final var entity = new ChatContextEntity()
         .setChatId(chatId)
@@ -508,6 +509,7 @@ public final class BotUtils {
         .setName(username)
         .setMessageId(messageId)
         .setMessage(transcribed)
+        .setGroupChat(groupChat)
         ;
     chatContextRepository.save(entity);
   }

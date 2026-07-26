@@ -6,6 +6,10 @@ import static org.nimko.com.util.TranscribedUtils.getTranscribed;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PreDestroy;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,6 +25,7 @@ import java.util.Locale;
 import org.nimko.com.util.BotUtils;
 import org.nimko.com.util.BotUtils.ReplyPayload;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.telegram.telegrambots.longpolling.interfaces.LongPollingUpdateConsumer;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
 import org.telegram.telegrambots.meta.api.objects.Update;
@@ -29,6 +34,8 @@ import org.telegram.telegrambots.meta.api.objects.Update;
 @RequiredArgsConstructor
 public class FamilyTelegramBot implements LongPollingUpdateConsumer {
 
+  public static final int TIME_AVALIBLE_HISTORY_CONTEXT = 30;
+  private static final String DAILY_SUMMARY_PROMPT = "Подведи юмористические (шуточные) итоги дня";
   private final String botUsername;
   private final AiChatService aiChatService;
 
@@ -205,7 +212,7 @@ public class FamilyTelegramBot implements LongPollingUpdateConsumer {
 
         addTranscribedInContext(BotUtils.getSenderName(message.getFrom()),
             BotUtils.getSenderName(message.getFrom()),
-            "[video] " + transcribed, chatId, messageId, chatContextRepository);
+            "[video] " + transcribed, chatId, messageId, chatContextRepository, groupChat);
       }
       return;
     }
@@ -220,7 +227,7 @@ public class FamilyTelegramBot implements LongPollingUpdateConsumer {
 
         addTranscribedInContext(BotUtils.getSenderName(message.getFrom()),
             BotUtils.getSenderName(message.getFrom()),
-            "[audio] " + transcribed, chatId, messageId, chatContextRepository);
+            "[audio] " + transcribed, chatId, messageId, chatContextRepository, groupChat);
       }
       return;
     }
@@ -235,7 +242,7 @@ public class FamilyTelegramBot implements LongPollingUpdateConsumer {
           botUsername) && !isCommand) {
         addTranscribedInContext(BotUtils.getSenderName(message.getFrom()),
             BotUtils.getSenderName(message.getFrom()),
-            text, chatId, messageId, chatContextRepository);
+            text, chatId, messageId, chatContextRepository, groupChat);
         log.info("Saved context in group chat");
         return;
       }
@@ -295,10 +302,35 @@ public class FamilyTelegramBot implements LongPollingUpdateConsumer {
     mediaDownloadService.shutdown();
   }
 
-//  @Scheduled(cron = "0 0 2 * * *")
-//  private void clearChatContext() {
-//
-//  }
+  @Scheduled(cron = "0 0 2 * * *")
+  private void clearChatContext() {
+    final Instant monthAgo = Instant.now().minus(TIME_AVALIBLE_HISTORY_CONTEXT, ChronoUnit.DAYS);
+    chatContextRepository.deleteByCreatedAtBefore(monthAgo);
+    log.info("Cleared chat context entries older than {}", monthAgo);
+  }
+
+  @Scheduled(cron = "0 30 21 * * *")
+  private void sendDailySummary() {
+    final LocalDate today = LocalDate.now(ZoneId.systemDefault());
+    final Instant startOfDay = today.atStartOfDay(ZoneId.systemDefault()).toInstant();
+    final Instant endOfDay = today.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant();
+
+    final List<Long> chatIds = chatContextRepository.findDistinctChatIdByCreatedAtBetweenAndGroupChatTrue(
+        startOfDay, endOfDay);
+
+    for (final Long chatId : chatIds) {
+      final List<String> context = getTodayContext(chatContextRepository, objectMapper, chatId);
+      if (context == null || context.isEmpty()) {
+        continue;
+      }
+
+      final String prompt = BotUtils.stripBotPrefix(DAILY_SUMMARY_PROMPT, botUsername, context, true);
+      final String summary = aiChatService.ask(prompt);
+      if (StringUtils.isNotBlank(summary)) {
+        botSenderService.sendReply(chatId, summary, null);
+      }
+    }
+  }
 
   public record ReplyData(String text, boolean newsResponse) {
 

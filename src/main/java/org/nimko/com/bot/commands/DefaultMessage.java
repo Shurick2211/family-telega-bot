@@ -56,7 +56,7 @@ public class DefaultMessage implements CommandProcess{
     if (groupChat && StringUtils.isNotBlank(normalizedText)) {
       final String authorUsername = BotUtils.getSenderName(message.getFrom());
       addTranscribedInContext(authorUsername, authorUsername,
-          BotUtils.stripTextPrefix(normalizedText), chatId, messageId, chatContextRepository);
+          BotUtils.stripTextPrefix(normalizedText), chatId, messageId, chatContextRepository, groupChat);
     }
 
     if (hasPhoto) {
@@ -80,7 +80,7 @@ public class DefaultMessage implements CommandProcess{
         : new ReplyData(aiChatService.ask(prompt), false);
 
     if (groupChat && result.text() != null) {
-      addTranscribedInContext(botUsername, "Bot", result.text(), chatId, messageId, chatContextRepository);
+      addTranscribedInContext(botUsername, "Bot", result.text(), chatId, messageId, chatContextRepository, groupChat);
     }
 
     return result;

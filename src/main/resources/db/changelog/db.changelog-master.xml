@@ -6,5 +6,6 @@
         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
     <include file="db/changelog/changes/01-create-chat-context-table.sql"/>
+    <include file="db/changelog/changes/02-add-is-group-chat-column.sql"/>
 
 </databaseChangeLog>

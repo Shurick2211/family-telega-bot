@@ -20,6 +20,11 @@ public interface ChatContextRepository extends JpaRepository<ChatContextEntity, 
   List<ChatContextEntity> findByChatIdAndCreatedAtBetweenOrderByIdAsc(Long chatId,
       Instant createdAtFrom, Instant createdAtTo);
 
+  void deleteByCreatedAtBefore(Instant createdAtBefore);
+
+  List<Long> findDistinctChatIdByCreatedAtBetweenAndGroupChatTrue(Instant createdAtFrom,
+      Instant createdAtTo);
+
   static List<String> getTodayContext(final ChatContextRepository chatContextRepository,
       final ObjectMapper objectMapper, final Long chatId) {
     final LocalDate today = LocalDate.now(ZoneId.systemDefault());

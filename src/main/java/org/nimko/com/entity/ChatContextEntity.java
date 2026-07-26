@@ -41,4 +41,6 @@ public class ChatContextEntity {
   @Column(name = "created_at", nullable = false)
   @CreationTimestamp
   private Instant createdAt;
+  @Column(name = "is_group_chat", nullable = false)
+  private boolean isGroupChat;
 }
