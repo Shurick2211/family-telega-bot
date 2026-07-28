@@ -1,4 +1,4 @@
-# 916 Family Telegram Bot
+#  Family Telegram Bot
 
 A highly functional, self-hosted, **Spring Boot 3.x** and **AI-powered** Telegram bot. Built to serve as an intelligent, context-aware companion for family and group chats, it features real-time voice and video transcriptions, rich article generation (delivered as customized Word documents), automated comedic diaries, multi-language support, emotional tracking, and background media downloading.
 
@@ -8,44 +8,44 @@ Specifically optimized for portability, it can run flawlessly on lightweight env
 
 ## +50 Key Features
 
-### 1. 9e0 Smart Chat Assistant & Multi-Turn Context
+### 1.  Smart Chat Assistant & Multi-Turn Context
 * **Context Preservation:** Keeps a daily-rotating rolling window of conversation history in PostgreSQL so discussions with the AI are natural and coherent.
 * **Group Identity & Author Attribution:** In group chats, it tracks who said what (attributing names and stripping bot username tags) so that the AI understands individual participant perspectives.
 * **Auto-Cleanup:** A daily scheduled task automatically cleans up chat logs older than 30 days to keep the system lightweight and secure.
 
-### 2. 4dd Advanced Article Writer (`/articles` & Docx Generation)
+### 2. Advanced Article Writer (`/articles` & Docx Generation)
 * **Custom Markdown to Word Document (.docx):** Enter a prompt, topic, or reply to a text/link with `/articles`. The bot will generate a thorough, comprehensive article using AI, parse the markdown formatting, and convert it into a beautifully styled MS Word document (`.docx`).
 * **Professional Typography:** Generated documents feature elegant styling tailored for Ukrainian/Slovak standards, including Times New Roman typography, standard heading hierarchies, clean bullet lists, and customized first-line indentations.
 
-### 3. 4f0 Smart News Re-writer (`/news` & Multimodal Input)
+### 3.  Smart News Re-writer (`/news` & Multimodal Input)
 * **Catchy Summaries:** Extracts and rewrites news from links or plain text into engaging, easily readable summaries.
 * **Multimodal Support:** Upload a photo with the `/news` command, and the AI will analyze the visual content in tandem with your text to generate a unified news story.
 
-### 4. 399 Media Transcription & Audio Extractor (`/text` & `/audio`)
+### 4. Media Transcription & Audio Extractor (`/text` & `/audio`)
 * **`/text` (Speech-to-Text):** Transcribes voice notes, standard audio files, video notes (round video messages / круглі відео), and standard videos. Voice notes are seamlessly transcoded from OGG to MP3 using an internal FFMPEG process prior to transcription.
 * **Group Chat Auto-Transcribe:** If enabled (`AUTO_TRANSCRIBE=true`), the bot will automatically transcribe all incoming voice and video messages in group chats on-the-fly and insert them directly into the ongoing AI context.
 * **`/audio` (Audio Extraction):** Extracts audio tracks from video notes, standard videos, or video documents and delivers them back as clean, high-fidelity MP3 files.
 
-### 5. 3ad Emotion & Reaction Tracking
+### 5.  Emotion & Reaction Tracking
 * **Sentiment Context:** Monitors user message reactions (such as 44d, '64, or 602).
 * **AI Feedback:** Registers reactions as special events in the database (e.g., `[emotion] 44d`), allowing the AI to gauge user sentiment and adapt its conversational tone.
 
-### 6. 4c5 Automated Comedic Diaries & Summaries
+### 6. Automated Comedic Diaries & Summaries
 * **Humorous Daily Digests:** Every evening at **21:30**, the bot compiles the group's conversation logs from that day and uses AI to generate a hilarious, satirical summary of the family's day.
 * **Humorous Monthly Digests:** On the last day of each month at **21:45**, the bot compiles all the month's daily summaries to produce a monthly comedic highlight.
 * **On-Demand Retrieval:** Retrieve any historic daily summary directly using `/daily dd-MM-yyyy`.
 
-### 7. 4e5 Background Media Downloader
+### 7. Background Media Downloader
 * **Automatic Detection:** Paste shared video links (such as TikTok, YouTube, etc.) directly into the chat.
 * **Silent Download:** The bot forwards the URL to a configured background media downloader service, fetches the source file, and uploads the actual video/audio file attachment straight to the chat.
 
-### 8. 310 Multi-Language Localization (i18n)
+### 8. Multi-Language Localization (i18n)
 * **Native Support:** Dynamic locale switching supporting **English**, **Ukrainian (uk)**, **Slovak (sk)**, and **Russian (ru)**.
 * **Smart Detection:** Automatically infers the preferred language from user profiles or the active group chat context.
 
 ---
 
-## 6e0 Technology Stack
+## Technology Stack
 
 * **Core Framework:** Spring Boot 3.x (Java 21/17)
 * **Database & Persistence:** PostgreSQL, Spring Data JPA, Liquibase (Database migrations)
@@ -57,7 +57,7 @@ Specifically optimized for portability, it can run flawlessly on lightweight env
 
 ---
 
-## 4f1 Termux Optimization (Self-Hosting on Android)
+## Termux Optimization (Self-Hosting on Android)
 
 The bot is uniquely designed to run on a spare Android device inside **Termux**.
 * **Termux FFMPEG Locator:** Includes a customized `TermuxFFMPEGLocator` that points directly to the Termux native FFMPEG package path:
@@ -68,7 +68,7 @@ The bot is uniquely designed to run on a spare Android device inside **Termux**.
 
 ---
 
-## &99 Configuration & Environment Variables
+## Configuration & Environment Variables
 
 You can configure the application using environment variables or by creating a `.env` file in the root folder.
 
@@ -98,7 +98,7 @@ You can configure the application using environment variables or by creating a `
 
 ---
 
-## 680 Installation & Running
+## Installation & Running
 
 ### Prerequisites
 1. **Java Runtime:** Java 17 or Java 21.
@@ -128,7 +128,7 @@ Alternatively, use the built-in execution scripts:
 
 ---
 
-## 4ac Commands Reference
+## Commands Reference
 
 * `/start` - Displays the bot's readiness and starts the conversation.
 * `/hello` - A friendly greetings response.
@@ -142,7 +142,7 @@ Alternatively, use the built-in execution scripts:
 
 ---
 
-## 4ca Database Schema
+## Database Schema
 
 The database relies on **Liquibase** to manage its tables:
 1. `chat_context`: Stores context-aware message lines, usernames, time, message IDs, and special reaction triggers.
@@ -150,5 +150,5 @@ The database relies on **Liquibase** to manage its tables:
 
 ---
 
-## 91d License & Contribution
+## License & Contribution
 This is a private project tailored for lightweight personal server deployments. Contributions, forks, and feature suggestions are welcome! Feel free to customize prompts in the `src/main/resources/prompts/` folder.
