@@ -47,6 +47,12 @@ public final class BotUtils {
   public static final int TELEGRAM_CAPTION_LIMIT = 1024;
 
   public static final String[] BOT_NAMES = {"айріс", "айрис", "iris", "бот"};
+  public static final String ADDITIONAL_INFO = """
+      \n
+      (Примітка: Нам не вдалося автоматично завантажити вміст цих посилань.
+      Будь ласка, спробуй самостійно отримати/знайти інформацію за цими посиланнями за
+      допомогою своїх інструментів пошуку/доступу до веб-сторінок, або напиши статтю на
+      основі наявного тексту та контексту посилання.)""";
 
   public static boolean hasUserContent(final Message message) {
     return message != null
@@ -322,7 +328,7 @@ public final class BotUtils {
           + "\n\n"
           + basePrompt
           + "\n\nПосилання для обробки: " + urlsListStr
-          + "\n\n(Примітка: Нам не вдалося автоматично завантажити вміст цих посилань. Будь ласка, спробуй самостійно отримати/знайти інформацію за цими посиланнями за допомогою своїх інструментів пошуку/доступу до веб-сторінок, або напиши новину на основі наявного тексту та назви посилання.)";
+          + ADDITIONAL_INFO;
     }
 
     return newsPrompt()
@@ -351,11 +357,11 @@ public final class BotUtils {
     final String urlsListStr = String.join(", ", urls);
 
     if (StringUtils.isBlank(linkContext)) {
-      return  articlesPrompt()
+      return articlesPrompt()
           + "\n\n"
           + basePrompt
           + "\n\nПосилання для обробки: " + urlsListStr
-          + "\n\n(Примітка: Нам не вдалося автоматично завантажити вміст цих посилань. Будь ласка, спробуй самостійно отримати/знайти інформацію за цими посиланнями за допомогою своїх інструментів пошуку/доступу до веб-сторінок, або напиши статтю на основі наявного тексту та контексту посилання.)";
+          + ADDITIONAL_INFO;
     }
 
     return articlesPrompt()
@@ -389,7 +395,8 @@ public final class BotUtils {
     for (final String u : urls) {
       final String lower = u.toLowerCase();
       if (lower.contains("tiktok.com") || lower.contains("youtube.com")
-          || lower.contains("youtu.be") || lower.contains("instagram.com") || lower.contains("instagr.am")) {
+          || lower.contains("youtu.be") || lower.contains("instagram.com") || lower.contains(
+          "instagr.am")) {
         return true;
       }
     }
@@ -407,7 +414,8 @@ public final class BotUtils {
     for (final String u : urls) {
       final String lower = u.toLowerCase();
       if (lower.contains("tiktok.com") || lower.contains("youtube.com")
-          || lower.contains("youtu.be") || lower.contains("instagram.com") || lower.contains("instagr.am")) {
+          || lower.contains("youtu.be") || lower.contains("instagram.com") || lower.contains(
+          "instagr.am")) {
         return u;
       }
     }
@@ -438,14 +446,18 @@ public final class BotUtils {
     try {
       final HttpRequest request = HttpRequest.newBuilder(URI.create(url))
           .timeout(Duration.ofSeconds(10))
-          .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-          .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8")
+          .header("User-Agent",
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+          .header("Accept",
+              "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8")
           .header("Accept-Language", "en-US,en;q=0.5")
           .GET()
           .build();
 
-      final HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-      if (response.statusCode() < 200 || response.statusCode() >= 300 || StringUtils.isBlank(response.body())) {
+      final HttpResponse<String> response = HTTP_CLIENT.send(request,
+          HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+      if (response.statusCode() < 200 || response.statusCode() >= 300 || StringUtils.isBlank(
+          response.body())) {
         return null;
       }
       return truncate(extractReadableText(response.body()), 3000);
@@ -455,7 +467,8 @@ public final class BotUtils {
     }
   }
 
-  public static String buildTelegramFileUrl(final String telegramApiBaseUrl, final String botToken, final String filePath) {
+  public static String buildTelegramFileUrl(final String telegramApiBaseUrl, final String botToken,
+      final String filePath) {
     final String baseUrl = telegramApiBaseUrl.endsWith("/")
         ? telegramApiBaseUrl.substring(0, telegramApiBaseUrl.length() - 1)
         : telegramApiBaseUrl;
@@ -504,7 +517,8 @@ public final class BotUtils {
   }
 
 
-  public static Object buildUserContentNew(final String prompt, final byte[] mediaBytes, final String mimeType) {
+  public static Object buildUserContentNew(final String prompt, final byte[] mediaBytes,
+      final String mimeType) {
     if (mediaBytes == null || mediaBytes.length == 0) {
       return prompt;
     }
@@ -515,18 +529,19 @@ public final class BotUtils {
     if (resolvedMimeType.startsWith("audio/")) {
       final String audioFormat = resolvedMimeType.substring("audio/".length());
       return List.of(
-          java.util.Map.of("type", "text", "text", prompt),
-          java.util.Map.of("type", "input_audio", "input_audio",
-              java.util.Map.of("data", base64Data, "format", audioFormat)));
+          Map.of("type", "text", "text", prompt),
+          Map.of("type", "input_audio", "input_audio",
+              Map.of("data", base64Data, "format", audioFormat)));
     }
 
     final String dataUrl = "data:" + resolvedMimeType + ";base64," + base64Data;
     return List.of(
-        java.util.Map.of("type", "text", "text", prompt),
-        java.util.Map.of("type", "image_url", "image_url", java.util.Map.of("url", dataUrl)));
+        Map.of("type", "text", "text", prompt),
+        Map.of("type", "image_url", "image_url", Map.of("url", dataUrl)));
   }
 
-  public static void addTranscribedInContext(final String telegramUser, final String username, final String transcribed,
+  public static void addTranscribedInContext(final String telegramUser, final String username,
+      final String transcribed,
       final Long chatId, final int messageId, final ChatContextRepository chatContextRepository,
       final boolean groupChat) {
     log.info("Saved context for {}", username);
@@ -536,13 +551,13 @@ public final class BotUtils {
         .setName(username)
         .setMessageId(messageId)
         .setMessage(transcribed)
-        .setGroupChat(groupChat)
-        ;
+        .setGroupChat(groupChat);
     chatContextRepository.save(entity);
   }
 
 
   public record ReplyPayload(String text, byte[] photoBytes) {
+
   }
 
   public static Locale resolveLocale(final String langCode) {
