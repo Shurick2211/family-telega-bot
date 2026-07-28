@@ -8,12 +8,12 @@ import org.springframework.context.NoSuchMessageException;
 import org.springframework.stereotype.Service;
 
 @Service
-public class TranslationService {
+public class I18nService {
 
-  private static final Logger log = LoggerFactory.getLogger(TranslationService.class);
+  private static final Logger log = LoggerFactory.getLogger(I18nService.class);
   private final MessageSource messageSource;
 
-  public TranslationService(final MessageSource messageSource) {
+  public I18nService(final MessageSource messageSource) {
     this.messageSource = messageSource;
   }
 

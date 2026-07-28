@@ -2,7 +2,6 @@ package org.nimko.com.util;
 
 import static org.nimko.com.util.ReadResourceUtils.readResourceFile;
 
-import com.alibaba.fastjson.JSONObject;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -20,13 +19,21 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import lombok.experimental.UtilityClass;
 import org.nimko.com.ai.AiChatService.ChatMessage;
+import org.nimko.com.entity.ChatContextEntity;
+import org.nimko.com.repository.ChatContextRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.commons.lang3.StringUtils;
 import org.telegram.telegrambots.meta.api.objects.User;
+import org.telegram.telegrambots.meta.api.objects.chat.Chat;
 import org.telegram.telegrambots.meta.api.objects.message.Message;
+import org.telegram.telegrambots.meta.api.objects.reactions.ReactionType;
+import org.telegram.telegrambots.meta.api.objects.reactions.ReactionTypeEmoji;
+import org.telegram.telegrambots.meta.api.objects.reactions.ReactionTypeCustomEmoji;
 
+@UtilityClass
 public final class BotUtils {
 
   private static final Logger log = LoggerFactory.getLogger(BotUtils.class);
@@ -39,11 +46,13 @@ public final class BotUtils {
   private static final ConcurrentMap<String, ReplyPayload> COPY_IMG_PAYLOADS = new ConcurrentHashMap<>();
   public static final int TELEGRAM_CAPTION_LIMIT = 1024;
 
-  public static final int MAX_CONTEXT_SIZE = 50;
   public static final String[] BOT_NAMES = {"айріс", "айрис", "iris", "бот"};
-
-  private BotUtils() {
-  }
+  public static final String ADDITIONAL_INFO = """
+      \n
+      (Примітка: Нам не вдалося автоматично завантажити вміст цих посилань.
+      Будь ласка, спробуй самостійно отримати/знайти інформацію за цими посиланнями за
+      допомогою своїх інструментів пошуку/доступу до веб-сторінок, або напиши статтю на
+      основі наявного тексту та контексту посилання.)""";
 
   public static boolean hasUserContent(final Message message) {
     return message != null
@@ -80,9 +89,34 @@ public final class BotUtils {
       return false;
     }
     final String type = message.getChat().getType();
+    return groupOrSuperSuperGroup(message.getChat(), type);
+  }
+
+  public static boolean isGroupChat(final Chat chat) {
+    if (chat == null) {
+      return false;
+    }
+    final String type = chat.getType();
+    return groupOrSuperSuperGroup(chat, type);
+  }
+
+  private static boolean groupOrSuperSuperGroup(final Chat chat, final String type) {
     return "group".equalsIgnoreCase(type) || "supergroup".equalsIgnoreCase(type)
-        || Boolean.TRUE.equals(message.getChat().isGroupChat())
-        || Boolean.TRUE.equals(message.getChat().isSuperGroupChat());
+        || Boolean.TRUE.equals(chat.isGroupChat())
+        || Boolean.TRUE.equals(chat.isSuperGroupChat());
+  }
+
+  public static String getReactionString(final ReactionType reaction) {
+    if (reaction == null) {
+      return "";
+    }
+    if (reaction instanceof final ReactionTypeEmoji emojiReaction) {
+      return emojiReaction.getEmoji();
+    }
+    if (reaction instanceof final ReactionTypeCustomEmoji customEmojiReaction) {
+      return customEmojiReaction.getCustomEmojiId();
+    }
+    return reaction.getType();
   }
 
   public static String getSenderName(final User user) {
@@ -294,7 +328,7 @@ public final class BotUtils {
           + "\n\n"
           + basePrompt
           + "\n\nПосилання для обробки: " + urlsListStr
-          + "\n\n(Примітка: Нам не вдалося автоматично завантажити вміст цих посилань. Будь ласка, спробуй самостійно отримати/знайти інформацію за цими посиланнями за допомогою своїх інструментів пошуку/доступу до веб-сторінок, або напиши новину на основі наявного тексту та назви посилання.)";
+          + ADDITIONAL_INFO;
     }
 
     return newsPrompt()
@@ -323,11 +357,11 @@ public final class BotUtils {
     final String urlsListStr = String.join(", ", urls);
 
     if (StringUtils.isBlank(linkContext)) {
-      return  articlesPrompt()
+      return articlesPrompt()
           + "\n\n"
           + basePrompt
           + "\n\nПосилання для обробки: " + urlsListStr
-          + "\n\n(Примітка: Нам не вдалося автоматично завантажити вміст цих посилань. Будь ласка, спробуй самостійно отримати/знайти інформацію за цими посиланнями за допомогою своїх інструментів пошуку/доступу до веб-сторінок, або напиши статтю на основі наявного тексту та контексту посилання.)";
+          + ADDITIONAL_INFO;
     }
 
     return articlesPrompt()
@@ -361,7 +395,8 @@ public final class BotUtils {
     for (final String u : urls) {
       final String lower = u.toLowerCase();
       if (lower.contains("tiktok.com") || lower.contains("youtube.com")
-          || lower.contains("youtu.be") || lower.contains("instagram.com") || lower.contains("instagr.am")) {
+          || lower.contains("youtu.be") || lower.contains("instagram.com") || lower.contains(
+          "instagr.am")) {
         return true;
       }
     }
@@ -379,7 +414,8 @@ public final class BotUtils {
     for (final String u : urls) {
       final String lower = u.toLowerCase();
       if (lower.contains("tiktok.com") || lower.contains("youtube.com")
-          || lower.contains("youtu.be") || lower.contains("instagram.com") || lower.contains("instagr.am")) {
+          || lower.contains("youtu.be") || lower.contains("instagram.com") || lower.contains(
+          "instagr.am")) {
         return u;
       }
     }
@@ -410,14 +446,18 @@ public final class BotUtils {
     try {
       final HttpRequest request = HttpRequest.newBuilder(URI.create(url))
           .timeout(Duration.ofSeconds(10))
-          .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-          .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8")
+          .header("User-Agent",
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+          .header("Accept",
+              "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8")
           .header("Accept-Language", "en-US,en;q=0.5")
           .GET()
           .build();
 
-      final HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-      if (response.statusCode() < 200 || response.statusCode() >= 300 || StringUtils.isBlank(response.body())) {
+      final HttpResponse<String> response = HTTP_CLIENT.send(request,
+          HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+      if (response.statusCode() < 200 || response.statusCode() >= 300 || StringUtils.isBlank(
+          response.body())) {
         return null;
       }
       return truncate(extractReadableText(response.body()), 3000);
@@ -427,7 +467,8 @@ public final class BotUtils {
     }
   }
 
-  public static String buildTelegramFileUrl(final String telegramApiBaseUrl, final String botToken, final String filePath) {
+  public static String buildTelegramFileUrl(final String telegramApiBaseUrl, final String botToken,
+      final String filePath) {
     final String baseUrl = telegramApiBaseUrl.endsWith("/")
         ? telegramApiBaseUrl.substring(0, telegramApiBaseUrl.length() - 1)
         : telegramApiBaseUrl;
@@ -476,7 +517,8 @@ public final class BotUtils {
   }
 
 
-  public static Object buildUserContentNew(final String prompt, final byte[] mediaBytes, final String mimeType) {
+  public static Object buildUserContentNew(final String prompt, final byte[] mediaBytes,
+      final String mimeType) {
     if (mediaBytes == null || mediaBytes.length == 0) {
       return prompt;
     }
@@ -487,39 +529,35 @@ public final class BotUtils {
     if (resolvedMimeType.startsWith("audio/")) {
       final String audioFormat = resolvedMimeType.substring("audio/".length());
       return List.of(
-          java.util.Map.of("type", "text", "text", prompt),
-          java.util.Map.of("type", "input_audio", "input_audio",
-              java.util.Map.of("data", base64Data, "format", audioFormat)));
+          Map.of("type", "text", "text", prompt),
+          Map.of("type", "input_audio", "input_audio",
+              Map.of("data", base64Data, "format", audioFormat)));
     }
 
     final String dataUrl = "data:" + resolvedMimeType + ";base64," + base64Data;
     return List.of(
-        java.util.Map.of("type", "text", "text", prompt),
-        java.util.Map.of("type", "image_url", "image_url", java.util.Map.of("url", dataUrl)));
+        Map.of("type", "text", "text", prompt),
+        Map.of("type", "image_url", "image_url", Map.of("url", dataUrl)));
   }
 
-  public static void addTranscribedInContext(final String message, final String username, final String transcribed,
-      final Long chatId, final int messageId,final Map<Long, List<String>> chatContext) {
+  public static void addTranscribedInContext(final String telegramUser, final String username,
+      final String transcribed,
+      final Long chatId, final int messageId, final ChatContextRepository chatContextRepository,
+      final boolean groupChat) {
     log.info("Saved context for {}", username);
-    final var json = new JSONObject();
-    json.put("userName", message);
-    json.put("messageId", messageId);
-    json.put("name", username);
-    json.put("text", transcribed);
-
-    addMessageToContext(chatId, json.toJSONString(), chatContext);
+    final var entity = new ChatContextEntity()
+        .setChatId(chatId)
+        .setUserName(telegramUser)
+        .setName(username)
+        .setMessageId(messageId)
+        .setMessage(transcribed)
+        .setGroupChat(groupChat);
+    chatContextRepository.save(entity);
   }
 
-  private static void addMessageToContext(final Long chatId, final String jsonMessage, final Map<Long, List<String>> chatContext) {
-    final var contextList = chatContext.computeIfAbsent(chatId, k -> new ArrayList<>());
-    contextList.add(jsonMessage);
-
-    while (contextList.size() > MAX_CONTEXT_SIZE) {
-      contextList.remove(0);
-    }
-  }
 
   public record ReplyPayload(String text, byte[] photoBytes) {
+
   }
 
   public static Locale resolveLocale(final String langCode) {

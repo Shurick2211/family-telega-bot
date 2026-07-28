@@ -1,4 +1,4 @@
-package org.nimko.com.web;
+package org.nimko.com.api;
 
 import java.util.Map;
 import org.springframework.web.bind.annotation.GetMapping;

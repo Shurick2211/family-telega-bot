@@ -1,7 +1,5 @@
 package org.nimko.com.bot.commands;
 
-import java.util.List;
-import java.util.Map;
 import org.apache.commons.lang3.StringUtils;
 import org.nimko.com.ai.AiChatService;
 import org.nimko.com.bot.BotSenderService;
@@ -40,7 +38,7 @@ public class ArticlesCommand implements CommandProcess {
   @Override
   public ReplyData execute(final String normalizedText, final boolean hasPhoto, final byte[] imageBytes,
       final Message message, final Long chatId, final boolean hasVoice, final byte[] rawAudioBytes,
-      final byte[] extractedAudioFromVideoBytes, final boolean groupChat, final int messageId, final Map<Long, List<String>> chatContext) {
+      final byte[] extractedAudioFromVideoBytes, final boolean groupChat, final int messageId) {
     String promptArticles = BotUtils.extractCommandPayload(normalizedText);
 
     if (message.getReplyToMessage() != null) {

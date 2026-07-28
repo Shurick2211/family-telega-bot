@@ -4,6 +4,10 @@ import org.junit.jupiter.api.Test;
 import org.telegram.telegrambots.meta.api.objects.User;
 import org.telegram.telegrambots.meta.api.objects.chat.Chat;
 import org.telegram.telegrambots.meta.api.objects.message.Message;
+import org.telegram.telegrambots.meta.api.objects.reactions.ReactionType;
+import org.telegram.telegrambots.meta.api.objects.reactions.ReactionTypeEmoji;
+import org.telegram.telegrambots.meta.api.objects.reactions.ReactionTypeCustomEmoji;
+import org.telegram.telegrambots.meta.api.objects.reactions.ReactionTypePaid;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -212,5 +216,52 @@ public class BotUtilsTest {
     public void testDetectGroupLanguage_NoMatch() {
         String result = BotUtils.detectGroupLanguage("Hello, how are you?", null);
         assertNull(result);
+    }
+
+    @Test
+    public void testIsGroupChatWithChat_Group() {
+        Chat mockChat = mock(Chat.class);
+        when(mockChat.getType()).thenReturn("group");
+        assertTrue(BotUtils.isGroupChat(mockChat));
+    }
+
+    @Test
+    public void testIsGroupChatWithChat_SuperGroup() {
+        Chat mockChat = mock(Chat.class);
+        when(mockChat.getType()).thenReturn("supergroup");
+        assertTrue(BotUtils.isGroupChat(mockChat));
+    }
+
+    @Test
+    public void testIsGroupChatWithChat_Private() {
+        Chat mockChat = mock(Chat.class);
+        when(mockChat.getType()).thenReturn("private");
+        assertFalse(BotUtils.isGroupChat(mockChat));
+    }
+
+    @Test
+    public void testGetReactionString_Null() {
+        assertEquals("", BotUtils.getReactionString(null));
+    }
+
+    @Test
+    public void testGetReactionString_Emoji() {
+        ReactionTypeEmoji mockEmoji = mock(ReactionTypeEmoji.class);
+        when(mockEmoji.getEmoji()).thenReturn("👍");
+        assertEquals("👍", BotUtils.getReactionString(mockEmoji));
+    }
+
+    @Test
+    public void testGetReactionString_CustomEmoji() {
+        ReactionTypeCustomEmoji mockCustom = mock(ReactionTypeCustomEmoji.class);
+        when(mockCustom.getCustomEmojiId()).thenReturn("custom_123");
+        assertEquals("custom_123", BotUtils.getReactionString(mockCustom));
+    }
+
+    @Test
+    public void testGetReactionString_Paid() {
+        ReactionTypePaid mockPaid = mock(ReactionTypePaid.class);
+        when(mockPaid.getType()).thenReturn("paid");
+        assertEquals("paid", BotUtils.getReactionString(mockPaid));
     }
 }

@@ -1,12 +1,10 @@
 package org.nimko.com.bot.commands;
 
-import java.util.List;
-import java.util.Map;
 import org.nimko.com.bot.BotSenderService;
 import org.nimko.com.bot.FamilyTelegramBot.ReplyData;
 import org.nimko.com.services.AudioConverter;
 import org.nimko.com.services.TelegramFileService;
-import org.nimko.com.services.TranslationService;
+import org.nimko.com.services.I18nService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.annotation.Order;
@@ -21,16 +19,16 @@ public class AudioCommand implements CommandProcess {
 
   private final AudioConverter audioConverter;
   private final BotSenderService botSenderService;
-  private final TranslationService translationService;
+  private final I18nService i18nService;
   private final TelegramFileService telegramFileService;
 
   public AudioCommand(final AudioConverter audioConverter,
       final BotSenderService botSenderService,
-      final TranslationService translationService,
+      final I18nService i18nService,
       final TelegramFileService telegramFileService) {
     this.audioConverter = audioConverter;
     this.botSenderService = botSenderService;
-    this.translationService = translationService;
+    this.i18nService = i18nService;
     this.telegramFileService = telegramFileService;
   }
 
@@ -42,7 +40,7 @@ public class AudioCommand implements CommandProcess {
   @Override
   public ReplyData execute(final String normalizedText, final boolean hasPhoto, final byte[] imageBytes,
       final Message message, final Long chatId, final boolean hasVoice, final byte[] rawAudioBytes,
-      final byte[] extractedAudioFromVideoBytes, final boolean groupChat, final int messageId, final Map<Long, List<String>> chatContext) {
+      final byte[] extractedAudioFromVideoBytes, final boolean groupChat, final int messageId) {
     byte[] audioToSend = null;
 
     if (message.hasVideoNote() || message.hasVideo()) {
@@ -58,7 +56,7 @@ public class AudioCommand implements CommandProcess {
     }
 
     if (audioToSend == null || audioToSend.length == 0) {
-      botSenderService.sendTextReply(chatId, translationService.getTranslate("bot.audio.reply.prompt"));
+      botSenderService.sendTextReply(chatId, i18nService.getTranslate("bot.audio.reply.prompt"));
       return null;
     }
 
@@ -67,7 +65,7 @@ public class AudioCommand implements CommandProcess {
       botSenderService.sendAudioFile(chatId, audioToSend, "audio.mp3");
     } catch (final Exception ex) {
       log.error("Error processing /audio command for chat {}", chatId, ex);
-      botSenderService.sendTextReply(chatId, translationService.getTranslate("bot.audio.error", ex.getMessage()));
+      botSenderService.sendTextReply(chatId, i18nService.getTranslate("bot.audio.error", ex.getMessage()));
     }
     return null;
   }

@@ -1,9 +1,7 @@
 package org.nimko.com.bot.commands;
 
-import java.util.List;
-import java.util.Map;
 import org.nimko.com.bot.FamilyTelegramBot.ReplyData;
-import org.nimko.com.services.TranslationService;
+import org.nimko.com.services.I18nService;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.objects.message.Message;
@@ -12,10 +10,10 @@ import org.telegram.telegrambots.meta.api.objects.message.Message;
 @Order(1)
 public class HelpCommand implements CommandProcess {
 
-  private final TranslationService translationService;
+  private final I18nService i18nService;
 
-  public HelpCommand(final TranslationService translationService) {
-    this.translationService = translationService;
+  public HelpCommand(final I18nService i18nService) {
+    this.i18nService = i18nService;
   }
 
   @Override
@@ -26,7 +24,7 @@ public class HelpCommand implements CommandProcess {
   @Override
   public ReplyData execute(final String normalizedText, final boolean hasPhoto, final byte[] imageBytes,
       final Message message, final Long chatId, final boolean hasVoice, final byte[] rawAudioBytes,
-      final byte[] extractedAudioFromVideoBytes, final boolean groupChat, final int messageId, final Map<Long, List<String>> chatContext) {
-    return new ReplyData(translationService.getTranslate("bot.help"), false);
+      final byte[] extractedAudioFromVideoBytes, final boolean groupChat, final int messageId) {
+    return new ReplyData(i18nService.getTranslate("bot.help"), false);
   }
 }

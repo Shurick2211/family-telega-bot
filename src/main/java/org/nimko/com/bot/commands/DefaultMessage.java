@@ -1,14 +1,15 @@
 package org.nimko.com.bot.commands;
 
+import static org.nimko.com.repository.ChatContextRepository.getTodayContext;
 import static org.nimko.com.util.BotUtils.addTranscribedInContext;
 
-import java.util.Collections;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
-import java.util.Map;
 import org.apache.commons.lang3.StringUtils;
 import org.nimko.com.ai.AiChatService;
 import org.nimko.com.bot.FamilyTelegramBot.ReplyData;
 import org.nimko.com.config.TelegramBotProperties;
+import org.nimko.com.repository.ChatContextRepository;
 import org.nimko.com.util.BotUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,14 +22,19 @@ public class DefaultMessage implements CommandProcess{
   private final AiChatService aiChatService;
   private final String botUsername;
   private final long newsChatId;
+  private final ChatContextRepository chatContextRepository;
+  private final ObjectMapper objectMapper;
 
   private static final Logger log = LoggerFactory.getLogger(DefaultMessage.class);
 
   public DefaultMessage(final AiChatService aiChatService,
-      final TelegramBotProperties telegramProperties) {
+      final TelegramBotProperties telegramProperties, final ChatContextRepository chatContextRepository,
+      final ObjectMapper objectMapper) {
     this.aiChatService = aiChatService;
     this.botUsername = telegramProperties.username();
     this.newsChatId = telegramProperties.newsChatId();
+    this.chatContextRepository = chatContextRepository;
+    this.objectMapper = objectMapper;
   }
 
   @Override
@@ -40,9 +46,9 @@ public class DefaultMessage implements CommandProcess{
   public ReplyData execute(final String normalizedText,final boolean hasPhoto,
       final byte[] imageBytes,final Message message,final Long chatId, final boolean hasVoice,
       final byte[] rawAudioBytes, final byte[] extractedAudioFromVideoBytes,
-      final boolean groupChat,final int messageId, final Map<Long, List<String>> chatContext) {
+      final boolean groupChat,final int messageId) {
 
-    final List<String> currentHistory = chatContext.getOrDefault(chatId, Collections.emptyList());
+    final List<String> currentHistory = getTodayContext(chatContextRepository, objectMapper, chatId);
     final String prompt = groupChat
         ? BotUtils.stripBotPrefix(normalizedText, botUsername, currentHistory, groupChat)
         : normalizedText;
@@ -50,7 +56,7 @@ public class DefaultMessage implements CommandProcess{
     if (groupChat && StringUtils.isNotBlank(normalizedText)) {
       final String authorUsername = BotUtils.getSenderName(message.getFrom());
       addTranscribedInContext(authorUsername, authorUsername,
-          BotUtils.stripTextPrefix(normalizedText), chatId, messageId, chatContext);
+          BotUtils.stripTextPrefix(normalizedText), chatId, messageId, chatContextRepository, groupChat);
     }
 
     if (hasPhoto) {
@@ -74,7 +80,7 @@ public class DefaultMessage implements CommandProcess{
         : new ReplyData(aiChatService.ask(prompt), false);
 
     if (groupChat && result.text() != null) {
-      addTranscribedInContext(botUsername, "Bot", result.text(), chatId, messageId, chatContext);
+      addTranscribedInContext(botUsername, "Bot", result.text(), chatId, messageId, chatContextRepository, groupChat);
     }
 
     return result;
