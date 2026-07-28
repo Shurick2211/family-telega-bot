@@ -15,7 +15,7 @@ import org.nimko.com.repository.ChatContextRepository;
 import org.nimko.com.services.AudioConverter;
 import org.nimko.com.services.MediaDownloadService;
 import org.nimko.com.services.TelegramFileService;
-import org.nimko.com.services.TranslationService;
+import org.nimko.com.services.I18nService;
 import org.nimko.com.services.TranslationContext;
 import java.util.Locale;
 import org.nimko.com.util.BotUtils;
@@ -36,7 +36,7 @@ public class FamilyTelegramBot implements LongPollingUpdateConsumer {
   private final AudioConverter audioConverter;
   private final MediaDownloadService mediaDownloadService;
   private final boolean needAutoTranscribe;
-  private final TranslationService translationService;
+  private final I18nService i18nService;
   private final BotSenderService botSenderService;
   private final List<CommandProcess> commandProcesses;
   private final TelegramFileService telegramFileService;
@@ -198,7 +198,7 @@ public class FamilyTelegramBot implements LongPollingUpdateConsumer {
           mediaDownloadService.submitDownload(message.getChatId(), foundUrl,
               TranslationContext.getLocale());
           botSenderService.sendTextReply(message.getChatId(),
-              translationService.getTranslate("bot.media.downloading"));
+              i18nService.getTranslate("bot.media.downloading"));
         } catch (final Exception ex) {
           log.error("Error downloading media from URL: {}", foundUrl, ex);
         }
@@ -292,7 +292,7 @@ public class FamilyTelegramBot implements LongPollingUpdateConsumer {
     final ReplyPayload payload = BotUtils.getCopyImagePayload(token);
     if (payload == null) {
       botSenderService.answerCallbackQuery(callbackQuery.getId(),
-          translationService.getTranslate("bot.callback.image.unavailable"));
+          i18nService.getTranslate("bot.callback.image.unavailable"));
       return;
     }
 
@@ -303,7 +303,7 @@ public class FamilyTelegramBot implements LongPollingUpdateConsumer {
       botSenderService.answerCallbackQuery(callbackQuery.getId(), null);
     } else {
       botSenderService.answerCallbackQuery(callbackQuery.getId(),
-          translationService.getTranslate("bot.callback.image.failed"));
+          i18nService.getTranslate("bot.callback.image.failed"));
     }
   }
 

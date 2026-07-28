@@ -1,13 +1,12 @@
 package org.nimko.com.bot;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.nimko.com.config.TelegramBotProperties;
 import org.nimko.com.services.MediaDownloadService.FileSender;
-import org.nimko.com.services.TranslationService;
+import org.nimko.com.services.I18nService;
 import org.nimko.com.util.BotUtils;
 import org.nimko.com.util.BotUtils.ReplyPayload;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -15,19 +14,19 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.web.client.RestClient;
 
 @Service
+@Slf4j
 public class BotSenderService implements FileSender {
 
-  private static final Logger log = LoggerFactory.getLogger(BotSenderService.class);
   public static final String COPY_IMG_CALLBACK_PREFIX = "copy_img:";
   private static final String TELEGRAM_PARSE_MODE = "Markdown";
 
   private final String botToken;
   private final RestClient telegramClient;
-  private final TranslationService translationService;
+  private final I18nService i18nService;
 
   public BotSenderService(
       final TelegramBotProperties telegramProperties,
-      final TranslationService translationService) {
+      final I18nService i18nService) {
     this.botToken = telegramProperties.token();
     final String apiBaseUrl = StringUtils.isNotBlank(telegramProperties.apiBaseUrl())
         ? telegramProperties.apiBaseUrl()
@@ -35,7 +34,7 @@ public class BotSenderService implements FileSender {
     this.telegramClient = RestClient.builder()
         .baseUrl(apiBaseUrl)
         .build();
-    this.translationService = translationService;
+    this.i18nService = i18nService;
   }
 
   @Override
@@ -71,7 +70,7 @@ public class BotSenderService implements FileSender {
           .toBodilessEntity();
     } catch (final RuntimeException ex) {
       log.error("Failed to send downloaded file to chat {}", chatId, ex);
-      sendTextReply(chatId, translationService.getTranslate("bot.media.upload.failed", filename));
+      sendTextReply(chatId, i18nService.getTranslate("bot.media.upload.failed", filename));
     }
   }
 
@@ -198,7 +197,7 @@ public class BotSenderService implements FileSender {
       log.info("Audio file sent successfully to chat {}", chatId);
     } catch (final RuntimeException ex) {
       log.error("Failed to send audio file to chat {}", chatId, ex);
-      sendTextReply(chatId, translationService.getTranslate("bot.audio.failed"));
+      sendTextReply(chatId, i18nService.getTranslate("bot.audio.failed"));
     }
   }
 

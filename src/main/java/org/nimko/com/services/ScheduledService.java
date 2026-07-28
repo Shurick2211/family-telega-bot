@@ -31,7 +31,7 @@ public class ScheduledService {
   private static final String MONTHLY_SUMMARY_PROMPT = "Подведи юмористические (шуточные) итоги месяца";
 
   private final ChatContextRepository chatContextRepository;
-  private final DailySummaryChatRepository daylySummaryChatRepository;
+  private final DailySummaryChatRepository dailySummaryChatRepository;
   private final ObjectMapper objectMapper;
   private final AiChatService aiChatService;
   private final BotSenderService botSenderService;
@@ -52,20 +52,31 @@ public class ScheduledService {
 
     final List<Long> chatIds = chatContextRepository.findDistinctChatIdByCreatedAtBetweenAndGroupChatTrue(
         startOfDay, endOfDay);
+    log.info("Found {} chats for daily summary: {}", chatIds.size(), chatIds);
 
     for (final Long chatId : chatIds) {
       final List<String> context = getTodayContext(chatContextRepository, objectMapper, chatId);
       if (context == null || context.isEmpty()) {
+        log.info("Chat {} has no context, skipping daily summary", chatId);
         continue;
       }
 
       final String prompt = BotUtils.stripBotPrefix(DAILY_SUMMARY_PROMPT, telegramBotProperties.username(), context,
           true);
-      final String summary = aiChatService.ask(prompt);
+      final String summary;
+      try {
+        summary = aiChatService.ask(prompt);
+      } catch (final Exception ex) {
+        log.error("Failed to generate daily summary for chat {}", chatId, ex);
+        continue;
+      }
       if (StringUtils.isNotBlank(summary)) {
         botSenderService.sendReply(chatId, summary, null);
-        daylySummaryChatRepository.save(new DaylySummaryChatEntity()
+        dailySummaryChatRepository.save(new DaylySummaryChatEntity()
             .setChatId(chatId).setText(summary));
+        log.info("Sent daily summary to chat {}", chatId);
+      } else {
+        log.info("Empty summary from AI for chat {}, nothing sent", chatId);
       }
     }
   }
@@ -76,16 +87,17 @@ public class ScheduledService {
     if (!today.equals(today.withDayOfMonth(today.lengthOfMonth()))) {
       return;
     }
+    log.info("Sending monthly summary");
 
     final Instant startOfMonth = today.withDayOfMonth(1).atStartOfDay(ZoneId.systemDefault())
         .toInstant();
     final Instant endOfMonth = today.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant();
 
-    final List<Long> chatIds = daylySummaryChatRepository.findDistinctChatIdByCreatedAtBetween(
+    final List<Long> chatIds = dailySummaryChatRepository.findDistinctChatIdByCreatedAtBetween(
         startOfMonth, endOfMonth);
 
     for (final Long chatId : chatIds) {
-      final List<String> context = daylySummaryChatRepository
+      final List<String> context = dailySummaryChatRepository
           .findByChatIdAndCreatedAtBetweenOrderByIdAsc(chatId, startOfMonth, endOfMonth).stream()
           .map(DaylySummaryChatEntity::getText)
           .toList();

@@ -12,7 +12,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.nimko.com.bot.FamilyTelegramBot.ReplyData;
 import org.nimko.com.entity.DaylySummaryChatEntity;
 import org.nimko.com.repository.DailySummaryChatRepository;
-import org.nimko.com.services.TranslationService;
+import org.nimko.com.services.I18nService;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.objects.message.Message;
@@ -24,7 +24,7 @@ public class DailyCommand implements CommandProcess {
 
   private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd-MM-yyyy");
 
-  private final TranslationService translationService;
+  private final I18nService i18nService;
   private final DailySummaryChatRepository dailySummaryChatRepository;
 
   @Override
@@ -38,14 +38,14 @@ public class DailyCommand implements CommandProcess {
       final byte[] extractedAudioFromVideoBytes, final boolean groupChat, final int messageId) {
     final String dateArg = StringUtils.substringAfter(normalizedText, " ").trim();
     if (StringUtils.isBlank(dateArg)) {
-      return new ReplyData(translationService.getTranslate("bot.daily.usage"), false);
+      return new ReplyData(i18nService.getTranslate("bot.daily.usage"), false);
     }
 
     final LocalDate date;
     try {
       date = LocalDate.parse(dateArg, DATE_FORMATTER);
     } catch (final DateTimeParseException ex) {
-      return new ReplyData(translationService.getTranslate("bot.daily.invalidDate"), false);
+      return new ReplyData(i18nService.getTranslate("bot.daily.invalidDate"), false);
     }
 
     final Instant startOfDay = date.atStartOfDay(ZoneId.systemDefault()).toInstant();
@@ -55,7 +55,7 @@ public class DailyCommand implements CommandProcess {
         .findByChatIdAndCreatedAtBetweenOrderByIdAsc(chatId, startOfDay, endOfDay);
 
     if (summaries.isEmpty()) {
-      return new ReplyData(translationService.getTranslate("bot.daily.empty", dateArg), false);
+      return new ReplyData(i18nService.getTranslate("bot.daily.empty", dateArg), false);
     }
 
     final String text = summaries.stream()

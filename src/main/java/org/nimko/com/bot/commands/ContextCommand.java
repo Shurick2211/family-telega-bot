@@ -6,7 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.nimko.com.bot.FamilyTelegramBot.ReplyData;
 import org.nimko.com.repository.ChatContextRepository;
-import org.nimko.com.services.TranslationService;
+import org.nimko.com.services.I18nService;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.objects.message.Message;
@@ -16,7 +16,7 @@ import org.telegram.telegrambots.meta.api.objects.message.Message;
 @Order(1)
 public class ContextCommand implements CommandProcess {
 
-  private final TranslationService translationService;
+  private final I18nService i18nService;
   private final ChatContextRepository chatContextRepository;
   private final ObjectMapper objectMapper;
 
@@ -32,6 +32,6 @@ public class ContextCommand implements CommandProcess {
     final var contextList = getTodayContext(chatContextRepository, objectMapper, chatId);
     return new ReplyData(
         contextList != null ? String.join("\n", contextList)
-            : translationService.getTranslate("bot.context.empty"), false);
+            : i18nService.getTranslate("bot.context.empty"), false);
   }
 }

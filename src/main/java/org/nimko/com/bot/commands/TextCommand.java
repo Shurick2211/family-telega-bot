@@ -11,7 +11,7 @@ import org.nimko.com.bot.FamilyTelegramBot.ReplyData;
 import org.nimko.com.repository.ChatContextRepository;
 import org.nimko.com.services.AudioConverter;
 import org.nimko.com.services.TelegramFileService;
-import org.nimko.com.services.TranslationService;
+import org.nimko.com.services.I18nService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.annotation.Order;
@@ -28,7 +28,7 @@ public class TextCommand implements CommandProcess {
   private final AiChatService aiChatService;
   private final AudioConverter audioConverter;
   private final BotSenderService botSenderService;
-  private final TranslationService translationService;
+  private final I18nService i18nService;
   private final TelegramFileService telegramFileService;
   private final ChatContextRepository chatContextRepository;
 
@@ -92,7 +92,7 @@ public class TextCommand implements CommandProcess {
 
     if (audioToUse == null || audioToUse.length == 0) {
       botSenderService.sendTextReply(chatId,
-          translationService.getTranslate("bot.text.reply.prompt"));
+          i18nService.getTranslate("bot.text.reply.prompt"));
       return null;
     }
 
@@ -102,7 +102,7 @@ public class TextCommand implements CommandProcess {
 
       if (StringUtils.isBlank(transcribed)) {
         log.warn("Failed to transcribe the audio.");
-        botSenderService.sendTextReply(chatId, translationService.getTranslate("bot.text.failed"));
+        botSenderService.sendTextReply(chatId, i18nService.getTranslate("bot.text.failed"));
         return null;
       }
 
@@ -110,7 +110,7 @@ public class TextCommand implements CommandProcess {
     } catch (final Exception ex) {
       log.error("Error processing /text command for chat {}", chatId, ex);
       botSenderService.sendTextReply(chatId,
-          translationService.getTranslate("bot.text.error", ex.getMessage()));
+          i18nService.getTranslate("bot.text.error", ex.getMessage()));
     }
     return null;
   }
