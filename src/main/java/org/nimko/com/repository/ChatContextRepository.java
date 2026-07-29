@@ -10,6 +10,8 @@ import java.util.Objects;
 import java.util.Optional;
 import org.nimko.com.entity.ChatContextEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -22,8 +24,10 @@ public interface ChatContextRepository extends JpaRepository<ChatContextEntity, 
 
   void deleteByCreatedAtBefore(Instant createdAtBefore);
 
-  List<Long> findDistinctChatIdByCreatedAtBetweenAndGroupChatTrue(Instant createdAtFrom,
-      Instant createdAtTo);
+  @Query("SELECT DISTINCT c.chatId FROM ChatContextEntity c WHERE c.createdAt BETWEEN :createdAtFrom AND :createdAtTo AND c.groupChat = true")
+  List<Long> findDistinctChatIdByCreatedAtBetweenAndGroupChatTrue(
+      @Param("createdAtFrom") Instant createdAtFrom,
+      @Param("createdAtTo") Instant createdAtTo);
 
   static List<String> getTodayContext(final ChatContextRepository chatContextRepository,
       final ObjectMapper objectMapper, final Long chatId) {

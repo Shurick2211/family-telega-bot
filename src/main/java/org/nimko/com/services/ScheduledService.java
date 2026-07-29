@@ -20,6 +20,7 @@ import org.nimko.com.repository.DailySummaryChatRepository;
 import org.nimko.com.util.BotUtils;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
@@ -37,15 +38,17 @@ public class ScheduledService {
   private final BotSenderService botSenderService;
   private final TelegramBotProperties telegramBotProperties;
 
+  @Transactional
   @Scheduled(cron = "0 0 2 * * *")
   public void clearChatContext() {
+    log.info("Running scheduled task clearChatContext");
     final Instant monthAgo = Instant.now().minus(TIME_AVAILABLE_HISTORY_CONTEXT, ChronoUnit.DAYS);
     chatContextRepository.deleteByCreatedAtBefore(monthAgo);
-    log.info("Cleared chat context entries older than {}", monthAgo);
   }
 
   @Scheduled(cron = "0 30 21 * * *")
   public void sendDailySummary() {
+    log.info("Running scheduled task sendDailySummary");
     final LocalDate today = LocalDate.now(ZoneId.systemDefault());
     final Instant startOfDay = today.atStartOfDay(ZoneId.systemDefault()).toInstant();
     final Instant endOfDay = today.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant();
@@ -83,11 +86,13 @@ public class ScheduledService {
 
   @Scheduled(cron = "0 45 21 * * *")
   public void sendMonthlySummary() {
+    log.info("Running scheduled task sendMonthlySummary (checking last day of month)");
     final LocalDate today = LocalDate.now(ZoneId.systemDefault());
     if (!today.equals(today.withDayOfMonth(today.lengthOfMonth()))) {
+      log.info("Today is not the last day of the month, skipping monthly summary");
       return;
     }
-    log.info("Sending monthly summary");
+    log.info("Today is the last day of the month, sending monthly summary");
 
     final Instant startOfMonth = today.withDayOfMonth(1).atStartOfDay(ZoneId.systemDefault())
         .toInstant();
