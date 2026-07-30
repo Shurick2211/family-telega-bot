@@ -264,4 +264,21 @@ public class BotUtilsTest {
         when(mockPaid.getType()).thenReturn("paid");
         assertEquals("paid", BotUtils.getReactionString(mockPaid));
     }
+
+    @Test
+    public void testNormalizeCommandWithNewlineSeparator() {
+        assertEquals("/doc", BotUtils.normalizeCommand("/doc\nзроби звіт"));
+        assertEquals("/doc", BotUtils.normalizeCommand("/doc@family_bot\nзроби звіт"));
+        assertEquals("/doc", BotUtils.normalizeCommand("/doc зроби звіт"));
+        assertEquals("/doc", BotUtils.normalizeCommand("/doc"));
+    }
+
+    @Test
+    public void testExtractCommandPayloadWithNewlineSeparator() {
+        assertEquals("зроби звіт", BotUtils.extractCommandPayload("/doc\nзроби звіт"));
+        assertEquals("рядок 1\nрядок 2",
+                BotUtils.extractCommandPayload("/doc\nрядок 1\nрядок 2"));
+        assertEquals("зроби звіт", BotUtils.extractCommandPayload("/doc зроби звіт"));
+        assertEquals("", BotUtils.extractCommandPayload("/doc"));
+    }
 }

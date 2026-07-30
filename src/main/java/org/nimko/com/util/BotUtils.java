@@ -78,8 +78,8 @@ public final class BotUtils {
     if (StringUtils.isBlank(text)) {
       return text;
     }
-    final int spaceIndex = text.indexOf(' ');
-    final String command = spaceIndex >= 0 ? text.substring(0, spaceIndex) : text;
+    final int separatorIndex = indexOfWhitespace(text);
+    final String command = separatorIndex >= 0 ? text.substring(0, separatorIndex) : text;
     final int botIndex = command.indexOf('@');
     return botIndex >= 0 ? command.substring(0, botIndex) : command;
   }
@@ -277,8 +277,17 @@ public final class BotUtils {
     if (StringUtils.isBlank(text)) {
       return "";
     }
-    final int spaceIndex = text.indexOf(' ');
-    return spaceIndex >= 0 ? text.substring(spaceIndex + 1).trim() : "";
+    final int separatorIndex = indexOfWhitespace(text);
+    return separatorIndex >= 0 ? text.substring(separatorIndex + 1).trim() : "";
+  }
+
+  private static int indexOfWhitespace(final String text) {
+    for (int i = 0; i < text.length(); i++) {
+      if (Character.isWhitespace(text.charAt(i))) {
+        return i;
+      }
+    }
+    return -1;
   }
 
   public static boolean isAddressedToBot(final String text, final String botUsername) {
