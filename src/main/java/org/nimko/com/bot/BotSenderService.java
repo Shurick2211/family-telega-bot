@@ -11,6 +11,7 @@ import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 
 @Service
@@ -102,10 +103,22 @@ public class BotSenderService implements FileSender {
       return false;
     }
 
+    final SendResult result = sendMessageRequest(chatId, text, replyMarkupJson,
+        TELEGRAM_PARSE_MODE);
+    if (result == SendResult.BROKEN_ENTITIES) {
+      return sendMessageRequest(chatId, text, replyMarkupJson, null) == SendResult.SENT;
+    }
+    return result == SendResult.SENT;
+  }
+
+  private SendResult sendMessageRequest(final Long chatId, final String text,
+      final String replyMarkupJson, final String parseMode) {
     final LinkedMultiValueMap<String, String> form = new LinkedMultiValueMap<>();
     form.add("chat_id", chatId.toString());
     form.add("text", text);
-    form.add("parse_mode", TELEGRAM_PARSE_MODE);
+    if (parseMode != null) {
+      form.add("parse_mode", parseMode);
+    }
     if (StringUtils.isNotBlank(replyMarkupJson)) {
       form.add("reply_markup", replyMarkupJson);
     }
@@ -117,18 +130,45 @@ public class BotSenderService implements FileSender {
           .body(form)
           .retrieve()
           .toBodilessEntity();
-      return true;
+      return SendResult.SENT;
     } catch (final RuntimeException ex) {
+      if (parseMode != null && isEntityParseError(ex)) {
+        log.warn("Telegram rejected {} entities for chat {}, retrying as plain text: {}",
+            parseMode, chatId, ex.getMessage());
+        return SendResult.BROKEN_ENTITIES;
+      }
       log.error("Failed to send Telegram response to chat {}", chatId, ex);
-      return false;
+      return SendResult.FAILED;
     }
+  }
+
+  private static boolean isEntityParseError(final RuntimeException ex) {
+    return ex instanceof final HttpClientErrorException.BadRequest badRequest
+        && badRequest.getResponseBodyAsString().contains("can't parse entities");
+  }
+
+  private enum SendResult {
+    SENT, BROKEN_ENTITIES, FAILED
   }
 
   public boolean sendPhotoReply(final Long chatId, final byte[] photoBytes, final String caption,
       final String replyMarkupJson) {
+    final SendResult result = sendPhotoRequest(chatId, photoBytes, caption, replyMarkupJson,
+        TELEGRAM_PARSE_MODE);
+    if (result == SendResult.BROKEN_ENTITIES) {
+      return sendPhotoRequest(chatId, photoBytes, caption, replyMarkupJson, null)
+          == SendResult.SENT;
+    }
+    return result == SendResult.SENT;
+  }
+
+  private SendResult sendPhotoRequest(final Long chatId, final byte[] photoBytes,
+      final String caption, final String replyMarkupJson, final String parseMode) {
     final LinkedMultiValueMap<String, Object> form = new LinkedMultiValueMap<>();
     form.add("chat_id", chatId.toString());
-    form.add("parse_mode", TELEGRAM_PARSE_MODE);
+    if (parseMode != null) {
+      form.add("parse_mode", parseMode);
+    }
     if (StringUtils.isNotBlank(caption)) {
       form.add("caption", caption);
     }
@@ -149,10 +189,15 @@ public class BotSenderService implements FileSender {
           .body(form)
           .retrieve()
           .toBodilessEntity();
-      return true;
+      return SendResult.SENT;
     } catch (final RuntimeException ex) {
+      if (parseMode != null && isEntityParseError(ex)) {
+        log.warn("Telegram rejected {} caption entities for chat {}, retrying as plain text: {}",
+            parseMode, chatId, ex.getMessage());
+        return SendResult.BROKEN_ENTITIES;
+      }
       log.error("Failed to send Telegram photo response to chat {}", chatId, ex);
-      return false;
+      return SendResult.FAILED;
     }
   }
 
