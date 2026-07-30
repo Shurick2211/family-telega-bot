@@ -67,6 +67,11 @@ public class AiChatService {
     return askInternalWithSystem(prompt, BotUtils.articlesPrompt());
   }
 
+  public String askDoc(final String prompt) {
+    log.info("Ask doc!!!");
+    return askInternalWithSystem(prompt, BotUtils.docPrompt());
+  }
+
   private String askInternalWithSystem(final String prompt, final String systemPrompt) {
     if (!properties.isConfigured()) {
       return "AI provider is not configured.";

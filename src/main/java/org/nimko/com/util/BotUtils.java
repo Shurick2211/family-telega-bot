@@ -216,6 +216,10 @@ public final class BotUtils {
     return readResourceFile("prompts/articles_prompt.txt");
   }
 
+  public static String docPrompt() {
+    return readResourceFile("prompts/doc_prompt.txt");
+  }
+
   public static String extractContent(final ChatMessage message) {
     if (message == null || message.content() == null) {
       return null;
