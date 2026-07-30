@@ -6,8 +6,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -37,21 +39,29 @@ public class ScheduledService {
   private final AiChatService aiChatService;
   private final BotSenderService botSenderService;
   private final TelegramBotProperties telegramBotProperties;
+  private final ZoneId appZoneId;
+
+
+  @Scheduled(fixedRate = 30, timeUnit = TimeUnit.MINUTES)
+  public void heartbeat() {
+    log.info("Scheduler heartbeat: now={} zone={} (jvm default zone={})",
+        ZonedDateTime.now(appZoneId), appZoneId, ZoneId.systemDefault());
+  }
 
   @Transactional
-  @Scheduled(cron = "0 0 2 * * *")
+  @Scheduled(cron = "${app.schedule.clear-context-cron}", zone = "${app.timezone}")
   public void clearChatContext() {
     log.info("Running scheduled task clearChatContext");
     final Instant monthAgo = Instant.now().minus(TIME_AVAILABLE_HISTORY_CONTEXT, ChronoUnit.DAYS);
     chatContextRepository.deleteByCreatedAtBefore(monthAgo);
   }
 
-  @Scheduled(cron = "0 30 21 * * *")
+  @Scheduled(cron = "${app.schedule.daily-summary-cron}", zone = "${app.timezone}")
   public void sendDailySummary() {
     log.info("Running scheduled task sendDailySummary");
-    final LocalDate today = LocalDate.now(ZoneId.systemDefault());
-    final Instant startOfDay = today.atStartOfDay(ZoneId.systemDefault()).toInstant();
-    final Instant endOfDay = today.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant();
+    final LocalDate today = LocalDate.now(appZoneId);
+    final Instant startOfDay = today.atStartOfDay(appZoneId).toInstant();
+    final Instant endOfDay = today.plusDays(1).atStartOfDay(appZoneId).toInstant();
 
     final List<Long> chatIds = chatContextRepository.findDistinctChatIdByCreatedAtBetweenAndGroupChatTrue(
         startOfDay, endOfDay);
@@ -84,19 +94,18 @@ public class ScheduledService {
     }
   }
 
-  @Scheduled(cron = "0 45 21 * * *")
+  @Scheduled(cron = "${app.schedule.monthly-summary-cron}", zone = "${app.timezone}")
   public void sendMonthlySummary() {
     log.info("Running scheduled task sendMonthlySummary (checking last day of month)");
-    final LocalDate today = LocalDate.now(ZoneId.systemDefault());
+    final LocalDate today = LocalDate.now(appZoneId);
     if (!today.equals(today.withDayOfMonth(today.lengthOfMonth()))) {
       log.info("Today is not the last day of the month, skipping monthly summary");
       return;
     }
     log.info("Today is the last day of the month, sending monthly summary");
 
-    final Instant startOfMonth = today.withDayOfMonth(1).atStartOfDay(ZoneId.systemDefault())
-        .toInstant();
-    final Instant endOfMonth = today.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant();
+    final Instant startOfMonth = today.withDayOfMonth(1).atStartOfDay(appZoneId).toInstant();
+    final Instant endOfMonth = today.plusDays(1).atStartOfDay(appZoneId).toInstant();
 
     final List<Long> chatIds = dailySummaryChatRepository.findDistinctChatIdByCreatedAtBetween(
         startOfMonth, endOfMonth);

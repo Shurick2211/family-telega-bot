@@ -21,6 +21,18 @@ spring:
   liquibase:
     change-log: classpath:db/changelog/db.changelog-master.yml
     enabled: true
+  task:
+    scheduling:
+      thread-name-prefix: sched-
+      pool:
+        size: 4
+
+app:
+  timezone: ${APP_TIMEZONE:Europe/Kyiv}
+  schedule:
+    clear-context-cron: ${CLEAR_CONTEXT_CRON:0 0 2 * * *}
+    daily-summary-cron: ${DAILY_SUMMARY_CRON:0 30 21 * * *}
+    monthly-summary-cron: ${MONTHLY_SUMMARY_CRON:0 45 21 * * *}
 
 telegram:
   bot:
