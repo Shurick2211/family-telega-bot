@@ -2,12 +2,15 @@ package org.nimko.com.ai;
 
 import static org.nimko.com.util.BotUtils.buildUserContentNew;
 
+import java.time.Duration;
 import java.util.List;
 import org.nimko.com.config.AiChatProperties;
 import org.nimko.com.util.BotUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.ClientHttpRequestFactory;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.web.client.RestClient;
 
@@ -15,6 +18,8 @@ public class AiChatService {
 
   private static final Logger log = LoggerFactory.getLogger(AiChatService.class);
   private static final int MAX_TOKENS = 8000;
+  private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(30);
+  private static final Duration READ_TIMEOUT = Duration.ofMinutes(5);
   private final String transcriptionModel;
 
   private final AiChatProperties properties;
@@ -32,9 +37,18 @@ public class AiChatService {
         ? RestClient.builder()
         .baseUrl(properties.apiBaseUrl())
         .defaultHeader("Authorization", "Bearer " + key)
+        .requestFactory(requestFactory())
         .build()
         : null;
     return restClient;
+  }
+
+
+  private ClientHttpRequestFactory requestFactory() {
+    final SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+    factory.setConnectTimeout(CONNECT_TIMEOUT);
+    factory.setReadTimeout(READ_TIMEOUT);
+    return factory;
   }
 
   public String ask(final String prompt) {

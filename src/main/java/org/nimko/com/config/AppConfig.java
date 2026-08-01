@@ -5,6 +5,7 @@ import static com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import java.time.ZoneId;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.nimko.com.ai.AiChatService;
@@ -73,6 +74,13 @@ public class AppConfig {
         log.error("Failed to register Telegram bot {}", telegramProperties.username(), ex);
       }
     };
+  }
+
+  @Bean
+  ZoneId appZoneId(final @Value("${app.timezone}") String timezone) {
+    final ZoneId zoneId = ZoneId.of(timezone);
+    log.info("Application timezone: {} (JVM default: {})", zoneId, ZoneId.systemDefault());
+    return zoneId;
   }
 
   @Bean
