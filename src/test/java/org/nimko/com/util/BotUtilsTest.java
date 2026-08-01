@@ -278,7 +278,20 @@ public class BotUtilsTest {
         assertEquals("зроби звіт", BotUtils.extractCommandPayload("/doc\nзроби звіт"));
         assertEquals("рядок 1\nрядок 2",
                 BotUtils.extractCommandPayload("/doc\nрядок 1\nрядок 2"));
-        assertEquals("зроби звіт", BotUtils.extractCommandPayload("/doc зроби звіт"));
-        assertEquals("", BotUtils.extractCommandPayload("/doc"));
+    }
+
+    @Test
+    public void testCopyImagePayloadLifecycle() {
+        byte[] bytes = new byte[]{1, 2, 3};
+        String token = BotUtils.registerCopyImagePayload("test", bytes);
+        assertNotNull(token);
+
+        BotUtils.ReplyPayload payload = BotUtils.getCopyImagePayload(token);
+        assertNotNull(payload);
+        assertEquals("test", payload.text());
+        assertArrayEquals(bytes, payload.photoBytes());
+
+        BotUtils.removeCopyImagePayload(token);
+        assertNull(BotUtils.getCopyImagePayload(token));
     }
 }

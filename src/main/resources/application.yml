@@ -47,7 +47,7 @@ ai:
   api-base-url: ${AI_API_BASE_URL}
   api-key: ${AI_API_KEY}
   api-key-secondary: ${AI_API_KEY_2}
-  enable-secondery: ${ENABLE_SECONDARY:false}
+  enable-secondary: ${ENABLE_SECONDARY:false}
   default-model: ${AI_DEFAULT_MODEL}
   system-prompt: ${AI_SYSTEM_PROMPT}
 

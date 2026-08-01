@@ -31,9 +31,15 @@ public interface ChatContextRepository extends JpaRepository<ChatContextEntity, 
 
   static List<String> getTodayContext(final ChatContextRepository chatContextRepository,
       final ObjectMapper objectMapper, final Long chatId) {
-    final LocalDate today = LocalDate.now(ZoneId.systemDefault());
-    final Instant startOfDay = today.atStartOfDay(ZoneId.systemDefault()).toInstant();
-    final Instant endOfDay = today.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant();
+    return getTodayContext(chatContextRepository, objectMapper, chatId, ZoneId.of("Europe/Kyiv"));
+  }
+
+  static List<String> getTodayContext(final ChatContextRepository chatContextRepository,
+      final ObjectMapper objectMapper, final Long chatId, final ZoneId zoneId) {
+    final ZoneId resolvedZone = zoneId != null ? zoneId : ZoneId.of("Europe/Kyiv");
+    final LocalDate today = LocalDate.now(resolvedZone);
+    final Instant startOfDay = today.atStartOfDay(resolvedZone).toInstant();
+    final Instant endOfDay = today.plusDays(1).atStartOfDay(resolvedZone).toInstant();
     return chatContextRepository
         .findByChatIdAndCreatedAtBetweenOrderByIdAsc(chatId, startOfDay, endOfDay).stream()
         .map(e -> {

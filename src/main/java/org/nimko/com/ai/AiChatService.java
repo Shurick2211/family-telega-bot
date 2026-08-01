@@ -23,26 +23,35 @@ public class AiChatService {
   private final String transcriptionModel;
 
   private final AiChatProperties properties;
-  private RestClient restClient;
+  private final RestClient primaryRestClient;
+  private final RestClient secondaryRestClient;
 
   public AiChatService(final String transcriptionModel, final AiChatProperties properties) {
     this.transcriptionModel = transcriptionModel;
     this.properties = properties;
-    restClient = getRestClient(properties, properties.apiKey());
+    this.primaryRestClient = buildClient(properties, properties.apiKey());
+    this.secondaryRestClient = properties.enableSecondary() && StringUtils.isNotBlank(properties.apiKeySecondary())
+        ? buildClient(properties, properties.apiKeySecondary())
+        : null;
   }
 
-  private RestClient getRestClient(final AiChatProperties properties, final String key) {
-    final RestClient restClient;
-    restClient = properties.isConfigured()
-        ? RestClient.builder()
+  private RestClient buildClient(final AiChatProperties properties, final String key) {
+    if (!properties.isConfigured() || StringUtils.isBlank(key)) {
+      return null;
+    }
+    return RestClient.builder()
         .baseUrl(properties.apiBaseUrl())
         .defaultHeader("Authorization", "Bearer " + key)
         .requestFactory(requestFactory())
-        .build()
-        : null;
-    return restClient;
+        .build();
   }
 
+  private RestClient resolveClient(final boolean news) {
+    if (news && properties.enableSecondary() && secondaryRestClient != null) {
+      return secondaryRestClient;
+    }
+    return primaryRestClient;
+  }
 
   private ClientHttpRequestFactory requestFactory() {
     final SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
@@ -57,14 +66,7 @@ public class AiChatService {
 
   public String askNews(final String prompt) {
     log.info("Ask news!!!");
-    if (properties.enableSecondary()) {
-      restClient = getRestClient(properties, properties.apiKeySecondary());
-    }
-    final var result = askInternal(prompt, null, null, true, null);
-    if (properties.enableSecondary()) {
-      restClient = getRestClient(properties, properties.apiKey());
-    }
-    return result;
+    return askInternal(prompt, null, null, true, null);
   }
 
   public String askWithImage(final String prompt, final byte[] imageBytes, final String mimeType) {
@@ -103,8 +105,13 @@ public class AiChatService {
         ),
         temperature);
 
+    final RestClient client = resolveClient(false);
+    if (client == null) {
+      return "AI provider is not configured.";
+    }
+
     try {
-      final ChatCompletionResponse response = restClient.post()
+      final ChatCompletionResponse response = client.post()
           .uri("/chat/completions")
           .contentType(MediaType.APPLICATION_JSON)
           .body(request)
@@ -170,8 +177,13 @@ public class AiChatService {
         ),
         temperature);
 
+    final RestClient client = resolveClient(news);
+    if (client == null) {
+      return "AI provider is not configured.";
+    }
+
     try {
-      final ChatCompletionResponse response = restClient.post()
+      final ChatCompletionResponse response = client.post()
           .uri("/chat/completions")
           .contentType(MediaType.APPLICATION_JSON)
           .body(request)

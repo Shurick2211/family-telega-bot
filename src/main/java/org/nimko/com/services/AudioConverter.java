@@ -103,9 +103,13 @@ public class AudioConverter {
   private void runProcess(final ProcessBuilder pb) throws IOException, InterruptedException {
     pb.redirectErrorStream(true);
     final Process process = pb.start();
-    final int exitCode = process.waitFor();
-    if (exitCode != 0) {
-      throw new RuntimeException("FFmpeg exited with error code: " + exitCode);
+    try (final var inputStream = process.getInputStream()) {
+      final byte[] output = inputStream.readAllBytes();
+      final int exitCode = process.waitFor();
+      if (exitCode != 0) {
+        log.error("FFmpeg process failed with exit code {}: {}", exitCode, new String(output));
+        throw new RuntimeException("FFmpeg exited with error code: " + exitCode);
+      }
     }
   }
 

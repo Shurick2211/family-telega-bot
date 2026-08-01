@@ -13,9 +13,12 @@ public record AiChatProperties(
     String systemPrompt) {
 
   public boolean isConfigured() {
-    return StringUtils.isNotBlank(apiBaseUrl)
+    final boolean baseConfigured = StringUtils.isNotBlank(apiBaseUrl)
         && StringUtils.isNotBlank(apiKey)
-        && StringUtils.isNotBlank(defaultModel)
-        && StringUtils.isNotBlank(apiKeySecondary);
+        && StringUtils.isNotBlank(defaultModel);
+    if (!baseConfigured) {
+      return false;
+    }
+    return !enableSecondary || StringUtils.isNotBlank(apiKeySecondary);
   }
 }

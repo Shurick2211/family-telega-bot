@@ -35,12 +35,14 @@ public class MediaDownloadService {
     this.downloaderEndpoint = downloaderEndpoint;
   }
 
-  public void submitDownload(final Long chatId, final String url, final Locale locale) throws IllegalArgumentException{
+  private static final com.fasterxml.jackson.databind.ObjectMapper MAPPER = new com.fasterxml.jackson.databind.ObjectMapper();
+
+  public void submitDownload(final Long chatId, final String url, final Locale locale) {
     executor.submit(() -> {
       try {
         TranslationContext.setLocale(locale);
 
-        final String payload = "{\"url\":\"" + url.replace("\"", "\\\"") + "\"}";
+        final String payload = MAPPER.writeValueAsString(java.util.Map.of("url", url));
         final HttpRequest req = HttpRequest.newBuilder()
             .uri(URI.create(downloaderEndpoint))
             .header("Content-Type", "application/json")
@@ -60,13 +62,12 @@ public class MediaDownloadService {
       } catch (final InterruptedException e) {
         Thread.currentThread().interrupt();
         log.warn("Download interrupted for url {}", url, e);
-        throw new IllegalArgumentException(e);
       } catch (final IOException e) {
         log.error("I/O error while downloading url {}", url, e);
-        throw new IllegalArgumentException(e);
+        sender.sendText(chatId, "Failed to download media due to network error.");
       } catch (final Exception e) {
         log.error("Unexpected error while downloading url {}", url, e);
-        throw new IllegalArgumentException(e);
+        sender.sendText(chatId, "Failed to download media due to unexpected error.");
       } finally {
         TranslationContext.clear();
       }

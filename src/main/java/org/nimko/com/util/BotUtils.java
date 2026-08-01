@@ -11,6 +11,8 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -43,7 +45,18 @@ public final class BotUtils {
       .followRedirects(HttpClient.Redirect.NORMAL)
       .build();
   private static final Pattern URL_PATTERN = Pattern.compile("https?://[^\\s)\\]>\"']+");
-  private static final ConcurrentMap<String, ReplyPayload> COPY_IMG_PAYLOADS = new ConcurrentHashMap<>();
+
+  private static final int MAX_COPY_IMG_PAYLOADS = 200;
+
+  private static final Map<String, ReplyPayload> COPY_IMG_PAYLOADS =
+      Collections.synchronizedMap(new LinkedHashMap<>(16, 0.75f, true) {
+        @Override
+        protected boolean removeEldestEntry(
+            final Map.Entry<String, ReplyPayload> eldest) {
+          return size() > MAX_COPY_IMG_PAYLOADS;
+        }
+      });
+
   public static final int TELEGRAM_CAPTION_LIMIT = 1024;
 
   public static final String[] BOT_NAMES = {"айріс", "айрис", "iris", "бот"};
