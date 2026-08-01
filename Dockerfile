@@ -25,3 +25,4 @@ WORKDIR /app
 COPY --from=builder /app/build/libs/*-SNAPSHOT.jar app.jar
 
 ENTRYPOINT ["java", "-jar", "app.jar"]
+
