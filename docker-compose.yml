@@ -1,0 +1,53 @@
+services:
+  app:
+    build: .
+    container_name: test-bot-app
+    restart: unless-stopped
+    ports:
+      - "9091:9091"
+    env_file:
+      - .env
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=test_bot_db
+      - DB_USERNAME=test_bot_user
+      - DB_PASSWORD=test_bot_password
+      - DOWNLOADER_ENDPOINT=http://video-downloader:9001/download
+    depends_on:
+      db:
+        condition: service_healthy
+      video-downloader:
+        condition: service_started
+
+  db:
+    image: postgres:15-alpine
+    container_name: test-bot-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: test_bot_db
+      POSTGRES_USER: test_bot_user
+      POSTGRES_PASSWORD: test_bot_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test_bot_user -d test_bot_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  video-downloader:
+    build: 
+      context: ../file-download
+    container_name: video-downloader-api
+    ports:
+      - "9001:9001"
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+
