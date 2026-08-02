@@ -10,8 +10,8 @@ import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.objects.message.Message;
 
-@Service
-@Order(1)
+//@Service
+//@Order(1)
 public class PhotoCommand implements CommandProcess {
 
   private static final Logger log = LoggerFactory.getLogger(PhotoCommand.class);
