@@ -5,6 +5,7 @@ import static org.nimko.com.repository.ChatContextRepository.getTodayContext;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
@@ -32,6 +33,12 @@ public class ScheduledService {
   public static final int TIME_AVAILABLE_HISTORY_CONTEXT = 30;
   private static final String DAILY_SUMMARY_PROMPT = "Подведи юмористические (шуточные) итоги дня";
   private static final String MONTHLY_SUMMARY_PROMPT = "Подведи юмористические (шуточные) итоги месяца";
+  private static final LocalTime LOW_BATTERY_ALERT_START = LocalTime.of(8, 0);
+  private static final LocalTime LOW_BATTERY_ALERT_END = LocalTime.of(21, 0);
+  private static final int LOW_BATTERY_THRESHOLD_PERCENT = 20;
+  private static final int LOW_BATTERY_FLASHLIGHT_BLINKS = 3;
+  private static final long LOW_BATTERY_FLASHLIGHT_INTERVAL_MS = 300;
+  private static final String CHARGE_ME_MESSAGE = "Поставь меня на зарядку!";
 
   private final ChatContextRepository chatContextRepository;
   private final DailySummaryChatRepository dailySummaryChatRepository;
@@ -40,12 +47,23 @@ public class ScheduledService {
   private final BotSenderService botSenderService;
   private final TelegramBotProperties telegramBotProperties;
   private final ZoneId appZoneId;
+  private final TermuxService termuxService;
 
 
   @Scheduled(fixedRate = 30, timeUnit = TimeUnit.MINUTES)
   public void heartbeat() {
-    log.info("Scheduler heartbeat: now={} zone={} (jvm default zone={})",
-        ZonedDateTime.now(appZoneId), appZoneId, ZoneId.systemDefault());
+    final var now = ZonedDateTime.now(appZoneId);
+    final var batteryInfo = termuxService.getBatteryStatus();
+    log.info("Scheduler heartbeat: now={} zone={} (jvm default zone={}) batteryInfo={}",
+        now , appZoneId, ZoneId.systemDefault(), batteryInfo);
+
+    final LocalTime currentTime = now.toLocalTime();
+    if (!currentTime.isBefore(LOW_BATTERY_ALERT_START) && !currentTime.isAfter(LOW_BATTERY_ALERT_END)
+        && batteryInfo.percentage() <= LOW_BATTERY_THRESHOLD_PERCENT) {
+      log.info("Low battery detected: {}%, alerting", batteryInfo.percentage());
+      termuxService.blinkFlashlight(LOW_BATTERY_FLASHLIGHT_BLINKS, LOW_BATTERY_FLASHLIGHT_INTERVAL_MS);
+      termuxService.speak(CHARGE_ME_MESSAGE);
+    }
   }
 
   @Transactional
