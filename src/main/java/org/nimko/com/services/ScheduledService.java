@@ -63,6 +63,7 @@ public class ScheduledService {
       log.info("Low battery detected: {}%, alerting", batteryInfo.percentage());
       termuxService.blinkFlashlight(LOW_BATTERY_FLASHLIGHT_BLINKS, LOW_BATTERY_FLASHLIGHT_INTERVAL_MS);
       termuxService.speak(CHARGE_ME_MESSAGE);
+      botSenderService.sendTextReply(telegramBotProperties.newsChatId(), CHARGE_ME_MESSAGE);
     }
   }
 

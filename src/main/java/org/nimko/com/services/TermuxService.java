@@ -17,7 +17,12 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class TermuxService {
 
-  private static final String DCIM_DIR = System.getProperty("user.home") + "/storage/dcim/Camera";
+  /** Shared storage path where the Android camera stores photos. */
+  private static final String DCIM_DIR = "/storage/emulated/0/DCIM/Camera";
+  /** Symlink created by {@code termux-setup-storage}; points to the same place as {@link #DCIM_DIR}. */
+  private static final String TERMUX_DCIM_DIR =
+      System.getenv().getOrDefault("HOME", "/data/data/com.termux/files/home")
+          + "/storage/dcim/Camera";
   private static final long PROCESS_TIMEOUT_SECONDS = 30;
 
   private final ObjectMapper objectMapper;
@@ -45,15 +50,12 @@ public class TermuxService {
   }
 
   public byte[] takePhoto(final boolean useFrontCamera) {
-    final File dcimDir = new File(DCIM_DIR);
-    if (!dcimDir.exists() && !dcimDir.mkdirs()) {
-      throw new RuntimeException("Failed to create directory: " + DCIM_DIR);
-    }
+    final File dcimDir = resolvePhotoDir();
 
     final File photoFile = new File(dcimDir, "photo_" + Instant.now().toEpochMilli() + ".jpg");
     try {
-      runCommand("termux-camera-photo -с " +  (useFrontCamera ? "1" : "0")
-          , photoFile.getAbsolutePath());
+      runCommand("termux-camera-photo", "-c", useFrontCamera ? "1" : "0",
+          photoFile.getAbsolutePath());
       if (!photoFile.exists()) {
         throw new RuntimeException("Photo file was not created: " + photoFile.getAbsolutePath());
       }
@@ -62,6 +64,23 @@ public class TermuxService {
       log.error("Failed to take photo via Termux API", e);
       throw new RuntimeException("Failed to take photo", e);
     }
+  }
+
+  /**
+   * Returns the first writable photo directory: shared DCIM/Camera, the Termux storage symlink
+   * (both require {@code termux-setup-storage}), or the app temp dir as a last resort.
+   */
+  private File resolvePhotoDir() {
+    for (final String candidate : new String[] {DCIM_DIR, TERMUX_DCIM_DIR}) {
+      final File dir = new File(candidate);
+      if ((dir.isDirectory() || dir.mkdirs()) && dir.canWrite()) {
+        return dir;
+      }
+      log.warn("Photo directory is not writable, trying next candidate: {}", candidate);
+    }
+    final File fallback = new File(System.getProperty("java.io.tmpdir"));
+    log.warn("Falling back to temp directory for photos: {}", fallback);
+    return fallback;
   }
 
   public void setFlashlight(final boolean enabled) {
