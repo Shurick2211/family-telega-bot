@@ -79,6 +79,8 @@ public class FamilyTelegramBot implements LongPollingUpdateConsumer {
         log.info("Received Telegram message: chatId={} text={} hasPhoto={}",
             message.getChatId(), message.getText(), message.hasPhoto());
         handleUpdate(update);
+      } catch (final Exception ex) {
+        log.error("Unexpected error while handling update, skipping it", ex);
       } finally {
         TranslationContext.clear();
       }
@@ -148,19 +150,29 @@ public class FamilyTelegramBot implements LongPollingUpdateConsumer {
         (hasVideoNote || hasVideo || (hasDocument && telegramFileService.isMediaDocument(message)))
             ? telegramFileService.downloadAudioMessage(message) : null;
 
-    final byte[] rawAudioBytes;
+    byte[] rawAudioBytes;
     if (hasVoice && downloadedAudioBytes != null && downloadedAudioBytes.length > 0) {
       log.info("Converting OGG voice note to MP3...");
-      rawAudioBytes = audioConverter.convertOggToMp3(downloadedAudioBytes);
+      try {
+        rawAudioBytes = audioConverter.convertOggToMp3(downloadedAudioBytes);
+      } catch (final Exception ex) {
+        log.error("Failed to convert OGG voice note to MP3, skipping conversion result", ex);
+        rawAudioBytes = null;
+      }
     } else {
       rawAudioBytes = downloadedAudioBytes;
     }
 
-    final byte[] extractedAudioFromVideoBytes;
+    byte[] extractedAudioFromVideoBytes;
     if ((hasVideoNote || hasVideo) && downloadedVideoBytes != null
         && downloadedVideoBytes.length > 0) {
       log.info("Extracting audio track from video...");
-      extractedAudioFromVideoBytes = audioConverter.extractAudioFromVideo(downloadedVideoBytes);
+      try {
+        extractedAudioFromVideoBytes = audioConverter.extractAudioFromVideo(downloadedVideoBytes);
+      } catch (final Exception ex) {
+        log.error("Failed to extract audio track from video, skipping extraction result", ex);
+        extractedAudioFromVideoBytes = null;
+      }
     } else {
       extractedAudioFromVideoBytes = null;
     }
@@ -254,10 +266,12 @@ public class FamilyTelegramBot implements LongPollingUpdateConsumer {
       }
     }
 
+    final byte[] finalRawAudioBytes = rawAudioBytes;
+    final byte[] finalExtractedAudioFromVideoBytes = extractedAudioFromVideoBytes;
     final ReplyData response = commandProcesses.stream()
         .filter(c -> c.isCommand(BotUtils.normalizeCommand(normalizedText)))
         .findFirst().map(c -> c.execute(normalizedText, hasPhoto, imageBytes, message, chatId,
-            hasVoice, rawAudioBytes, extractedAudioFromVideoBytes, groupChat, messageId))
+            hasVoice, finalRawAudioBytes, finalExtractedAudioFromVideoBytes, groupChat, messageId))
         .orElse(null);
 
     if (response != null) {
