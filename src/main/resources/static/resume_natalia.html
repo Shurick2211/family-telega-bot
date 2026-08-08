@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Наталія Анікушина — Контент-менеджер | Редактор</title>
+<meta name="description" content="Наталія Анікушина — контент-менеджер та редактор із досвідом роботи з вебконтентом з 2010 року. Наповнення сайтів, редактура, новинний контент, Telegram та робота з англомовними джерелами.">
+<meta name="keywords" content="контент-менеджер, редактор, Content Manager, Web Content Manager, наповнення сайтів, новини, Telegram, CMS, фактчекінг, AI, ChatGPT">
+
+<style>
+:root{
+    --text:#172033;
+    --muted:#697386;
+    --accent:#3157d5;
+    --accent-soft:#eef2ff;
+    --border:#e5e8ee;
+    --background:#f5f6f8;
+    --white:#fff;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+    margin:0;
+    background:var(--background);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+    line-height:1.6;
+}
+a{color:inherit;text-decoration:none}
+.resume{
+    width:min(1080px,calc(100% - 32px));
+    margin:38px auto;
+    background:var(--white);
+    box-shadow:0 15px 45px rgba(23,32,51,.08);
+}
+.header{
+    padding:54px 62px 46px;
+    border-bottom:1px solid var(--border);
+}
+.header-inner{
+    display:flex;
+    justify-content:space-between;
+    gap:50px;
+    align-items:flex-start;
+}
+.label{
+    margin:0 0 10px;
+    color:var(--accent);
+    font-size:13px;
+    font-weight:700;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+}
+h1{
+    margin:0;
+    font-size:46px;
+    line-height:1.05;
+    letter-spacing:-.035em;
+}
+.position{
+    margin:14px 0 0;
+    font-size:21px;
+    color:var(--muted);
+    font-weight:500;
+}
+.intro-line{
+    max-width:660px;
+    margin:18px 0 0;
+    color:#465064;
+    font-size:15.5px;
+}
+.status{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    margin-top:20px;
+    padding:7px 12px;
+    border-radius:20px;
+    background:var(--accent-soft);
+    color:var(--accent);
+    font-size:13px;
+    font-weight:600;
+}
+.status::before{
+    content:"";
+    width:7px;height:7px;
+    background:#2da44e;
+    border-radius:50%;
+}
+.contacts{
+    min-width:205px;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    padding-top:4px;
+    color:var(--muted);
+    font-size:14px;
+    font-style:normal;
+}
+.contacts a:hover{color:var(--accent)}
+.content{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) 275px;
+    gap:58px;
+    padding:46px 62px 58px;
+}
+section{margin-bottom:43px}
+section:last-child{margin-bottom:0}
+h2{
+    margin:0 0 21px;
+    font-size:19px;
+    line-height:1.2;
+    letter-spacing:-.01em;
+}
+h2::after{
+    content:"";
+    display:block;
+    width:34px;
+    height:3px;
+    margin-top:9px;
+    border-radius:2px;
+    background:var(--accent);
+}
+.profile{
+    margin:0;
+    color:#3f4859;
+    font-size:15.5px;
+    line-height:1.75;
+}
+.job{
+    position:relative;
+    margin-bottom:30px;
+    padding-left:22px;
+    border-left:2px solid var(--border);
+}
+.job:last-child{margin-bottom:0}
+.job::before{
+    content:"";
+    position:absolute;
+    left:-6px;
+    top:5px;
+    width:10px;height:10px;
+    border-radius:50%;
+    background:var(--accent);
+}
+.job-head{
+    display:flex;
+    justify-content:space-between;
+    gap:18px;
+    margin-bottom:3px;
+}
+.job-title{
+    margin:0;
+    font-size:17px;
+    line-height:1.35;
+}
+.job-date{
+    flex-shrink:0;
+    color:var(--muted);
+    font-size:13px;
+}
+.job ul{
+    margin:0;
+    padding-left:19px;
+    color:#4a5363;
+    font-size:14px;
+}
+.job li{margin-bottom:5px}
+.job li:last-child{margin-bottom:0}
+.skills{
+    display:flex;
+    flex-wrap:wrap;
+    gap:7px;
+}
+.tag{
+    padding:5px 8px;
+    border:1px solid var(--border);
+    border-radius:5px;
+    background:#fafbfc;
+    color:#4c5667;
+    font-size:12px;
+}
+.skill-group{margin-bottom:20px}
+.skill-group:last-child{margin-bottom:0}
+.skill-title{
+    margin-bottom:8px;
+    font-size:14px;
+    font-weight:700;
+}
+.list{
+    margin:0;
+    padding:0;
+    list-style:none;
+}
+.list li{
+    margin-bottom:7px;
+    color:#4c5667;
+    font-size:14px;
+}
+.languages{
+    display:flex;
+    flex-direction:column;
+}
+.language{
+    display:flex;
+    justify-content:space-between;
+    gap:12px;
+    padding:8px 0;
+    border-bottom:1px solid var(--border);
+    font-size:14px;
+}
+.language:last-child{border-bottom:0}
+.level{color:var(--muted);text-align:right}
+.education{
+    padding-left:22px;
+    border-left:2px solid var(--border);
+}
+.education h3{
+    margin:0 0 4px;
+    font-size:16px;
+}
+.education p{
+    margin:3px 0;
+    color:#4c5667;
+    font-size:14px;
+}
+.footer{
+    padding:20px 62px;
+    border-top:1px solid var(--border);
+    color:var(--muted);
+    text-align:center;
+    font-size:12px;
+}
+@media(max-width:800px){
+    .resume{width:100%;margin:0}
+    .header{padding:36px 24px}
+    .header-inner{flex-direction:column;gap:24px}
+    h1{font-size:38px}
+    .contacts{min-width:0}
+    .content{
+        grid-template-columns:1fr;
+        gap:10px;
+        padding:36px 24px 48px;
+    }
+    .sidebar{order:2}
+    .job-head{flex-direction:column;gap:2px}
+    .footer{padding:18px 24px}
+}
+@media print{
+    body{background:#fff}
+    .resume{width:100%;margin:0;box-shadow:none}
+    .header,.content{padding-left:35px;padding-right:35px}
+    .footer{display:none}
+}
+</style>
+</head>
+
+<body>
+<main class="resume">
+
+<header class="header">
+    <div class="header-inner">
+        <div>
+            <p class="label">Резюме</p>
+            <h1>Наталія Анікушина</h1>
+            <p class="position">Контент-менеджер · Редактор · Web Content Manager</p>
+            <p class="intro-line">
+                Контент, редактура, вебсайти, новини, Telegram та робота
+                з англомовними джерелами. Досвід роботи з вебконтентом з 2010 року.
+            </p>
+            <div class="status">Відкрита до віддаленої роботи</div>
+        </div>
+
+        <address class="contacts">
+            <!-- Замініть на свої актуальні контакти -->
+            <a href="mailto:YOUR_EMAIL">YOUR_EMAIL</a>
+            <a href="https://t.me/YOUR_USERNAME" target="_blank" rel="noopener">Telegram</a>
+            <a href="https://www.linkedin.com/in/YOUR_PROFILE/" target="_blank" rel="noopener">LinkedIn</a>
+            <span>Україна · Remote</span>
+        </address>
+    </div>
+</header>
+
+<div class="content">
+
+<main>
+
+<section>
+    <h2>Професійний профіль</h2>
+    <p class="profile">
+        Контент-менеджер та редактор із досвідом роботи з вебконтентом з
+        <strong>2010 року</strong>. Основний досвід — наповнення та адміністрування
+        сайтів, переважно з технічними товарами та каталогами.
+        Працювала як із наповненням сайтів <strong>з нуля</strong>, так і з
+        оновленням та підтримкою вже існуючого контенту: створення й редагування
+        описів, внесення характеристик, структурування інформації,
+        актуалізація даних та підготовка матеріалів до публікації.
+        <br><br>
+        З <strong>2022 року</strong> працюю з новинною повісткою: моніторинг
+        інформації, пошук і перевірка джерел, редактура, підготовка заголовків
+        та адаптація матеріалів для сайтів і Telegram.
+        <br><br>
+        Маю значний досвід роботи з <strong>англомовним контентом</strong>:
+        пошук інформації, робота з першоджерелами, переклад, адаптація
+        та фактчекінг. Використовую ChatGPT/GPT та інші AI-інструменти
+        у роботі з контентом.
+    </p>
+</section>
+
+<section>
+    <h2>Досвід роботи</h2>
+
+    <article class="job">
+        <div class="job-head">
+            <h3 class="job-title">Контент-менеджер / Адміністратор сайтів</h3>
+            <span class="job-date">2010 — дотепер</span>
+        </div>
+        <ul>
+            <li>Наповнення та адміністрування вебсайтів.</li>
+            <li>Створення та наповнення сайтів з нуля.</li>
+            <li>Оновлення та підтримка існуючого контенту.</li>
+            <li>Робота переважно з технічними товарами та каталогами.</li>
+            <li>Створення, редагування та актуалізація описів і характеристик товарів.</li>
+            <li>Структурування великих масивів інформації та підготовка контенту до публікації.</li>
+            <li>Робота з CMS, HTML та базовою SEO-оптимізацією.</li>
+        </ul>
+    </article>
+
+    <article class="job">
+        <div class="job-head">
+            <h3 class="job-title">Контент-менеджер / Редактор</h3>
+            <span class="job-date">2022 — дотепер</span>
+        </div>
+        <ul>
+            <li>Моніторинг актуальної новинної повістки.</li>
+            <li>Пошук інформації та робота з першоджерелами.</li>
+            <li>Підготовка, редагування та адаптація новинних матеріалів.</li>
+            <li>Перевірка фактів, дат, цифр, імен та назв.</li>
+            <li>Робота з англомовними джерелами та матеріалами.</li>
+            <li>Переклад та адаптація контенту українською мовою.</li>
+            <li>Підготовка заголовків і структурування текстів.</li>
+            <li>Публікація та адаптація контенту для Telegram і вебсайтів.</li>
+        </ul>
+    </article>
+</section>
+
+<section>
+    <h2>Освіта</h2>
+    <div class="education">
+        <h3>Українська інженерно-педагогічна академія</h3>
+        <p>Енергетичний факультет</p>
+        <p><strong>Спеціальність — теплоенергетика</strong></p>
+    </div>
+</section>
+
+</main>
+
+<aside class="sidebar">
+
+<section>
+    <h2>Ключові навички</h2>
+
+    <div class="skill-group">
+        <div class="skill-title">Контент</div>
+        <div class="skills">
+            <span class="tag">Контент-менеджмент</span>
+            <span class="tag">Редактура</span>
+            <span class="tag">Копірайтинг</span>
+            <span class="tag">Рерайтинг</span>
+            <span class="tag">Вичитування</span>
+            <span class="tag">Наповнення сайтів</span>
+        </div>
+    </div>
+
+    <div class="skill-group">
+        <div class="skill-title">Web</div>
+        <div class="skills">
+            <span class="tag">WordPress</span>
+            <span class="tag">Joomla</span>
+            <span class="tag">OpenCart</span>
+            <span class="tag">Bitrix</span>
+            <span class="tag">PrestaShop</span>
+            <span class="tag">Webasyst</span>
+            <span class="tag">HTML</span>
+            <span class="tag">SEO</span>
+        </div>
+    </div>
+
+    <div class="skill-group">
+        <div class="skill-title">Новини</div>
+        <div class="skills">
+            <span class="tag">Моніторинг</span>
+            <span class="tag">Пошук інформації</span>
+            <span class="tag">Першоджерела</span>
+            <span class="tag">Фактчекінг</span>
+            <span class="tag">Заголовки</span>
+        </div>
+    </div>
+
+    <div class="skill-group">
+        <div class="skill-title">Digital & AI</div>
+        <div class="skills">
+            <span class="tag">Telegram</span>
+            <span class="tag">SMM</span>
+            <span class="tag">ChatGPT / GPT</span>
+            <span class="tag">Google Sheets</span>
+            <span class="tag">Excel</span>
+        </div>
+    </div>
+</section>
+
+<section>
+    <h2>Мови</h2>
+    <div class="languages">
+        <div class="language">
+            <span>Українська</span>
+            <span class="level">вільно</span>
+        </div>
+        <div class="language">
+            <span>Англійська</span>
+            <span class="level">базовий+</span>
+        </div>
+        <div class="language">
+            <span>Китайська</span>
+            <span class="level">початковий</span>
+        </div>
+    </div>
+</section>
+
+<section>
+    <h2>Формат роботи</h2>
+    <ul class="list">
+        <li>Віддалена робота</li>
+        <li>Контент-менеджмент</li>
+        <li>Редактура</li>
+        <li>Web Content</li>
+        <li>Новинний контент</li>
+        <li>Telegram-проєкти</li>
+    </ul>
+</section>
+
+</aside>
+
+</div>
+
+<footer class="footer">
+    Наталія Анікушина · Контент-менеджер · Редактор
+</footer>
+
+</main>
+</body>
+</html>

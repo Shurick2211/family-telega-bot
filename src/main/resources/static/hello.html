@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Вітаємо! Родина Німко</title>
+  <style>
+    :root {
+      --sky: #4a90d9;
+      --wheat: #f2c14e;
+      --ink: #1b2733;
+      --muted: #5b6b7c;
+      --card: rgba(255, 255, 255, 0.86);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 12% 18%, rgba(242, 193, 78, 0.35), transparent 45%),
+        radial-gradient(circle at 88% 8%, rgba(74, 144, 217, 0.35), transparent 45%),
+        linear-gradient(160deg, #eef5fc 0%, #fdf7e8 100%);
+      padding: 48px 20px 64px;
+    }
+
+    .wrap { max-width: 1000px; margin: 0 auto; }
+
+    header {
+      text-align: center;
+      margin-bottom: 44px;
+    }
+
+    .flag {
+      width: 96px;
+      height: 64px;
+      margin: 0 auto 24px;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 10px 24px rgba(27, 39, 51, 0.18);
+    }
+    .flag div { height: 50%; }
+    .flag .blue { background: var(--sky); }
+    .flag .yellow { background: var(--wheat); }
+
+    h1 {
+      margin: 0 0 12px;
+      font-size: clamp(2rem, 5vw, 3.2rem);
+      letter-spacing: -0.5px;
+    }
+
+    .lead {
+      margin: 0 auto;
+      max-width: 620px;
+      font-size: 1.1rem;
+      line-height: 1.65;
+      color: var(--muted);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 22px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid rgba(74, 144, 217, 0.16);
+      border-radius: 18px;
+      padding: 26px 24px 28px;
+      backdrop-filter: blur(6px);
+      box-shadow: 0 14px 30px rgba(27, 39, 51, 0.08);
+      transition: transform 0.25s ease, box-shadow 0.25s ease;
+    }
+    .card:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 22px 42px rgba(27, 39, 51, 0.14);
+    }
+
+    .avatar {
+      width: 58px;
+      height: 58px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      font-size: 1.7rem;
+      margin-bottom: 16px;
+      background: linear-gradient(135deg, rgba(74, 144, 217, 0.18), rgba(242, 193, 78, 0.35));
+    }
+
+    .card h2 {
+      margin: 0 0 4px;
+      font-size: 1.3rem;
+    }
+
+    .role {
+      margin: 0 0 14px;
+      font-size: 0.92rem;
+      font-weight: 600;
+      color: var(--sky);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+    }
+
+    .card p.about {
+      margin: 0;
+      line-height: 1.6;
+      color: var(--muted);
+    }
+
+    .tags {
+      margin-top: 16px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .tag {
+      font-size: 0.8rem;
+      padding: 5px 11px;
+      border-radius: 999px;
+      background: rgba(74, 144, 217, 0.12);
+      color: #2c5c8f;
+    }
+
+    footer {
+      margin-top: 48px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+    footer .heart { color: #e05c5c; }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --ink: #eaf1f8;
+        --muted: #a9b8c7;
+        --card: rgba(24, 34, 45, 0.78);
+      }
+      body {
+        background:
+          radial-gradient(circle at 12% 18%, rgba(242, 193, 78, 0.16), transparent 45%),
+          radial-gradient(circle at 88% 8%, rgba(74, 144, 217, 0.22), transparent 45%),
+          linear-gradient(160deg, #0f1720 0%, #16202b 100%);
+      }
+      .tag { background: rgba(74, 144, 217, 0.2); color: #bcd8f5; }
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="flag"><div class="blue"></div><div class="yellow"></div></div>
+    <h1>Вітаємо вас!</h1>
+    <p class="lead">
+      Щиро раді бачити вас на нашій сторінці. Ми — <strong>родина Німко</strong>:
+      четверо людей, які люблять технології, навчання та підтримувати одне одного.
+    </p>
+  </header>
+
+  <section class="grid">
+    <article class="card">
+      <div class="avatar">👨‍💻</div>
+      <h2>Олександр</h2>
+      <p class="role">Батько · 44 роки</p>
+      <p class="about">
+        Інженер-енергетик і програміст. Поєднує світ великої енергетики зі світом коду —
+        від електричних схем до застосунків.
+      </p>
+      <div class="tags">
+        <span class="tag">Енергетика</span>
+        <span class="tag">Програмування</span>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="avatar">📰</div>
+      <h2>Наталля</h2>
+      <p class="role">Мама · редактор новин</p>
+      <p class="about">
+        Редагує новини в телеграм-каналі: щодня перетворює потік інформації
+        на зрозумілі та вивірені тексти.
+      </p>
+      <div class="tags">
+        <span class="tag">Новини</span>
+        <span class="tag">Редагування</span>
+        <span class="tag">Telegram</span>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="avatar">🎓</div>
+      <h2>Софія</h2>
+      <p class="role">Донька · 17 років</p>
+      <p class="about">
+        Навчається у Словаччині — вступила на 1 курс СТУ. А ще репетиторка-волонтерка
+        зі словацької мови: допомагає іншим опанувати мову.
+      </p>
+      <div class="tags">
+        <span class="tag">СТУ</span>
+        <span class="tag">Словацька мова</span>
+        <span class="tag">Волонтерство</span>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="avatar">🐉</div>
+      <h2>Олександр</h2>
+      <p class="role">Син · 10 років</p>
+      <p class="about">
+        Школяр 2 ліцею м. Златопіль, перейшов у 5-А клас. Вивчає китайську мову —
+        і вже знає більше ієрогліфів, ніж дорослі.
+      </p>
+      <div class="tags">
+        <span class="tag">2 ліцей</span>
+        <span class="tag">5-А клас</span>
+        <span class="tag">Китайська мова</span>
+      </div>
+    </article>
+  </section>
+
+  <footer>
+    <p>Зроблено з <span class="heart">♥</span> родиною Німко</p>
+  </footer>
+</div>
+</body>
+</html>
