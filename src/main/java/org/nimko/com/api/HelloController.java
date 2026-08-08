@@ -13,7 +13,7 @@ public class HelloController {
   private static final String PAGE = "static/hello.html";
   private static final String CV_PAGE = "static/cv.html";
   private static final String CV_NATALIA_PAGE = "static/resume_natalia.html";
-  private static final String CV_SOPHIA_PAGE = "static/resume_sophiya.html";
+  private static final String CV_SOPHIA_PAGE = "static/cv_sofia_nimko_new_photo.html";
   private static final String CV_OLEKSANDR_ML_PAGE = "static/cv_oleksandr_nimko_ml.html";
 
   @GetMapping(value = "/hello", produces = MediaType.TEXT_HTML_VALUE)
