@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.nimko.com.bot.FamilyTelegramBot.ReplyData;
+import org.nimko.com.config.TelegramBotProperties;
 import org.nimko.com.repository.ChatContextRepository;
 import org.nimko.com.util.BotUtils;
 import org.springframework.core.annotation.Order;
@@ -20,6 +21,7 @@ import static org.nimko.com.util.BotUtils.addTranscribedInContext;
 public class ReactionCommand implements CommandProcess {
 
   private final ChatContextRepository chatContextRepository;
+  private final TelegramBotProperties telegramProperties;
 
   @Override
   public boolean isCommand(final String command) {
@@ -41,6 +43,10 @@ public class ReactionCommand implements CommandProcess {
 
     final Long chatId = messageReaction.getChat() != null ? messageReaction.getChat().getId() : null;
     if (chatId == null) {
+      return;
+    }
+
+    if (chatId.equals(telegramProperties.newsChatId())) {
       return;
     }
 

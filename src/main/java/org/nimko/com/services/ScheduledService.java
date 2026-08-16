@@ -73,6 +73,9 @@ public class ScheduledService {
     log.info("Running scheduled task clearChatContext");
     final Instant monthAgo = Instant.now().minus(TIME_AVAILABLE_HISTORY_CONTEXT, ChronoUnit.DAYS);
     chatContextRepository.deleteByCreatedAtBefore(monthAgo);
+
+    final Instant oneDayAgo = Instant.now().minus(24, ChronoUnit.HOURS);
+    chatContextRepository.deleteByGroupChatFalseAndCreatedAtBefore(oneDayAgo);
   }
 
   @Scheduled(cron = "${app.schedule.daily-summary-cron}", zone = "${app.timezone}")

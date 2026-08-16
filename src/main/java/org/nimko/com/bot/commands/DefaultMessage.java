@@ -48,12 +48,12 @@ public class DefaultMessage implements CommandProcess{
       final byte[] rawAudioBytes, final byte[] extractedAudioFromVideoBytes,
       final boolean groupChat,final int messageId) {
 
-    final List<String> currentHistory = getTodayContext(chatContextRepository, objectMapper, chatId);
+    final List<String> currentHistory = getTodayContext(chatContextRepository, objectMapper, chatId, newsChatId);
     final String prompt = groupChat
         ? BotUtils.stripBotPrefix(normalizedText, botUsername, currentHistory, groupChat)
         : normalizedText;
 
-    if (groupChat && StringUtils.isNotBlank(normalizedText)) {
+    if ((groupChat || chatId != newsChatId) && StringUtils.isNotBlank(normalizedText)) {
       final String authorUsername = BotUtils.getSenderName(message.getFrom());
       addTranscribedInContext(authorUsername, authorUsername,
           BotUtils.stripTextPrefix(normalizedText), chatId, messageId, chatContextRepository, groupChat);
@@ -79,7 +79,7 @@ public class DefaultMessage implements CommandProcess{
         new ReplyData(aiChatService.askNews(BotUtils.prepareNewsPrompt(prompt)), true)
         : new ReplyData(aiChatService.ask(prompt), false);
 
-    if (groupChat && result.text() != null) {
+    if ((groupChat || chatId != newsChatId) && result.text() != null) {
       addTranscribedInContext(botUsername, "Bot", result.text(), chatId, messageId, chatContextRepository, groupChat);
     }
 

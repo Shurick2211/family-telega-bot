@@ -110,7 +110,7 @@ public class FamilyTelegramBot implements LongPollingUpdateConsumer {
       String langCode = null;
       if (BotUtils.isGroupChat(message)) {
         langCode = BotUtils.detectGroupLanguage(text,
-            getTodayContext(chatContextRepository, objectMapper, chatId));
+            getTodayContext(chatContextRepository, objectMapper, chatId, newsChatId));
       }
 
       if (langCode == null && message.getFrom() != null) {
@@ -208,7 +208,7 @@ public class FamilyTelegramBot implements LongPollingUpdateConsumer {
 
     final boolean isCommand = text != null && text.startsWith("/");
     if ((hasVideoNote || hasVideo) && !isCommand && isNoNews(chatId)) {
-      if (groupChat && needAutoTranscribe) {
+      if (needAutoTranscribe) {
         final String transcribed = getTranscribed(true, message, extractedAudioFromVideoBytes,
             aiChatService);
         if (StringUtils.isBlank(transcribed)) {
@@ -224,7 +224,7 @@ public class FamilyTelegramBot implements LongPollingUpdateConsumer {
     }
 
     if (hasAudioMessage && !isCommand && isNoNews(chatId)) {
-      if (groupChat && needAutoTranscribe) {
+      if (needAutoTranscribe) {
         final String transcribed = getTranscribed(hasVoice, message, rawAudioBytes, aiChatService);
         if (StringUtils.isBlank(transcribed)) {
           log.warn("Failed to transcribe the audio.");

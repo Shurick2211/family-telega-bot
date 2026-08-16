@@ -1,5 +1,7 @@
 package org.nimko.com.util;
 
+import org.nimko.com.repository.ChatContextRepository;
+
 import org.junit.jupiter.api.Test;
 import org.telegram.telegrambots.meta.api.objects.User;
 import org.telegram.telegrambots.meta.api.objects.chat.Chat;
@@ -293,5 +295,80 @@ public class BotUtilsTest {
 
         BotUtils.removeCopyImagePayload(token);
         assertNull(BotUtils.getCopyImagePayload(token));
+    }
+
+    @Test
+    public void testAddTranscribedInContext_PersonalChat() {
+        ChatContextRepository mockRepo = mock(ChatContextRepository.class);
+        
+        BotUtils.addTranscribedInContext(
+            "user", "User", "Hello", 111L, 12, mockRepo, false
+        );
+        
+        verify(mockRepo, times(1)).save(any());
+    }
+
+    @Test
+    public void testAddTranscribedInContext_GroupChat() {
+        ChatContextRepository mockRepo = mock(ChatContextRepository.class);
+        
+        BotUtils.addTranscribedInContext(
+            "user", "User", "Hello", 111L, 12, mockRepo, true
+        );
+        
+        verify(mockRepo, times(1)).save(any());
+    }
+
+    @Test
+    public void testGetTodayContext_PersonalChat_FiltersToLastThreeHours() throws Exception {
+        ChatContextRepository mockRepo = mock(ChatContextRepository.class);
+        com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper()
+            .registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule());
+        
+        java.time.Instant now = java.time.Instant.now();
+        org.nimko.com.entity.ChatContextEntity oldEntity = new org.nimko.com.entity.ChatContextEntity()
+            .setChatId(222L)
+            .setUserName("user")
+            .setMessage("old")
+            .setGroupChat(false)
+            .setCreatedAt(now.minus(4, java.time.temporal.ChronoUnit.HOURS));
+            
+        org.nimko.com.entity.ChatContextEntity newEntity = new org.nimko.com.entity.ChatContextEntity()
+            .setChatId(222L)
+            .setUserName("user")
+            .setMessage("new")
+            .setGroupChat(false)
+            .setCreatedAt(now.minus(1, java.time.temporal.ChronoUnit.HOURS));
+            
+        when(mockRepo.findByChatIdAndCreatedAtBetweenOrderByIdAsc(eq(222L), any(), any()))
+            .thenReturn(java.util.List.of(oldEntity, newEntity));
+            
+        java.util.List<String> results = ChatContextRepository.getTodayContext(mockRepo, mapper, 222L, 999L);
+        
+        assertEquals(1, results.size());
+        assertTrue(results.get(0).contains("new"));
+    }
+
+    @Test
+    public void testGetTodayContext_NewsChat_DoesNotFilter() throws Exception {
+        ChatContextRepository mockRepo = mock(ChatContextRepository.class);
+        com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper()
+            .registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule());
+        
+        java.time.Instant now = java.time.Instant.now();
+        org.nimko.com.entity.ChatContextEntity oldEntity = new org.nimko.com.entity.ChatContextEntity()
+            .setChatId(999L)
+            .setUserName("user")
+            .setMessage("old")
+            .setGroupChat(false)
+            .setCreatedAt(now.minus(4, java.time.temporal.ChronoUnit.HOURS));
+            
+        when(mockRepo.findByChatIdAndCreatedAtBetweenOrderByIdAsc(eq(999L), any(), any()))
+            .thenReturn(java.util.List.of(oldEntity));
+            
+        java.util.List<String> results = ChatContextRepository.getTodayContext(mockRepo, mapper, 999L, 999L);
+        
+        assertEquals(1, results.size());
+        assertTrue(results.get(0).contains("old"));
     }
 }
