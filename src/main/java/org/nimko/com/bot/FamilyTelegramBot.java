@@ -229,7 +229,7 @@ public class FamilyTelegramBot implements LongPollingUpdateConsumer {
         }
 
         addTranscribedInContext(BotUtils.getSenderName(message.getFrom()),
-            BotUtils.getSenderName(message.getFrom()),
+            BotUtils.getSenderPersonName(message.getFrom()),
             "[video] " + transcribed, chatId, messageId, chatContextRepository, groupChat);
       }
       return;
@@ -244,7 +244,7 @@ public class FamilyTelegramBot implements LongPollingUpdateConsumer {
         }
 
         addTranscribedInContext(BotUtils.getSenderName(message.getFrom()),
-            BotUtils.getSenderName(message.getFrom()),
+            BotUtils.getSenderPersonName(message.getFrom()),
             "[audio] " + transcribed, chatId, messageId, chatContextRepository, groupChat);
       }
       return;
@@ -259,7 +259,7 @@ public class FamilyTelegramBot implements LongPollingUpdateConsumer {
       if (!BotUtils.isAddressedToBot(text, botUsername) && !BotUtils.isReplyToBot(message,
           botUsername) && !isCommand) {
         addTranscribedInContext(BotUtils.getSenderName(message.getFrom()),
-            BotUtils.getSenderName(message.getFrom()),
+            BotUtils.getSenderPersonName(message.getFrom()),
             text, chatId, messageId, chatContextRepository, groupChat);
         log.info("Saved context in group chat");
         return;

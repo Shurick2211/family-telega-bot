@@ -130,17 +130,27 @@ public final class BotUtils {
     return reaction.getType();
   }
 
+  public static String getSenderPersonName(final User user) {
+    if (user == null) {
+      return "Unknown";
+    }
+    final String firstName = user.getFirstName();
+    if (StringUtils.isNotBlank(firstName)) {
+      final String lastName = user.getLastName();
+      return StringUtils.isNotBlank(lastName) ? firstName + " " + lastName : firstName;
+    }
+    if (StringUtils.isNotBlank(user.getUserName())) {
+      return user.getUserName();
+    }
+    return user.getId().toString();
+  }
+
   public static String getSenderName(final User user) {
     if (user == null) {
       return "Unknown";
     }
     if (StringUtils.isNotBlank(user.getUserName())) {
       return user.getUserName();
-    }
-    final String firstName = user.getFirstName();
-    if (StringUtils.isNotBlank(firstName)) {
-      final String lastName = user.getLastName();
-      return StringUtils.isNotBlank(lastName) ? firstName + " " + lastName : firstName;
     }
     return user.getId().toString();
   }

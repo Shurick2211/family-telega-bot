@@ -57,7 +57,7 @@ public class ReactionCommand implements CommandProcess {
 
     final var user = messageReaction.getUser();
     final String telegramUser = user != null ? BotUtils.getSenderName(user) : "Unknown";
-    final String username = user != null ? BotUtils.getSenderName(user) : "Unknown";
+    final String username = user != null ? BotUtils.getSenderPersonName(user) : "Unknown";
     final boolean groupChat = BotUtils.isGroupChat(messageReaction.getChat());
 
     if (messageReaction.getNewReaction() != null) {
