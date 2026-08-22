@@ -9,6 +9,7 @@ import java.time.ZoneId;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.nimko.com.ai.AiChatService;
+import org.nimko.com.ai.AiChatServiceAudioBook;
 import org.nimko.com.bot.BotSenderService;
 import org.nimko.com.bot.FamilyTelegramBot;
 import org.nimko.com.bot.commands.CommandProcess;
@@ -31,10 +32,16 @@ public class AppConfig {
 
   @Bean
   AiChatService aiChatService(final AiChatProperties aiProperties,
-      final @Value("${transcription-model}") String transcriptionModel,
+      final @Value("${transcription-model}") String transcriptionModel) {
+    return new AiChatService(transcriptionModel, aiProperties);
+  }
+
+  @Bean
+  AiChatServiceAudioBook aiChatServiceAudioBook(final AiChatProperties aiProperties,
       final @Value("${tts-model}") String ttsModel,
-      final @Value("${tts-voice:}") String ttsVoice) {
-    return new AiChatService(transcriptionModel, ttsModel, ttsVoice, aiProperties);
+      final @Value("${tts-voice:}") String ttsVoice,
+      final AudioConverter audioConverter) {
+    return new AiChatServiceAudioBook(ttsModel, ttsVoice, aiProperties, audioConverter);
   }
 
   @Bean(destroyMethod = "close")

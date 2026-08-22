@@ -1,7 +1,7 @@
 package org.nimko.com.bot.commands;
 
 import org.apache.commons.lang3.StringUtils;
-import org.nimko.com.ai.AiChatService;
+import org.nimko.com.ai.AiChatServiceAudioBook;
 import org.nimko.com.bot.BotSenderService;
 import org.nimko.com.bot.FamilyTelegramBot.ReplyData;
 import org.nimko.com.services.AudioConverter;
@@ -20,20 +20,20 @@ public class BookCommand implements CommandProcess {
 
   private static final Logger log = LoggerFactory.getLogger(BookCommand.class);
 
-  private final AiChatService aiChatService;
+  private final AiChatServiceAudioBook aiChatServiceAudioBook;
   private final BookTextExtractorService bookTextExtractorService;
   private final TelegramFileService telegramFileService;
   private final AudioConverter audioConverter;
   private final BotSenderService botSenderService;
   private final I18nService i18nService;
 
-  public BookCommand(final AiChatService aiChatService,
+  public BookCommand(final AiChatServiceAudioBook aiChatServiceAudioBook,
       final BookTextExtractorService bookTextExtractorService,
       final TelegramFileService telegramFileService,
       final AudioConverter audioConverter,
       final BotSenderService botSenderService,
       final I18nService i18nService) {
-    this.aiChatService = aiChatService;
+    this.aiChatServiceAudioBook = aiChatServiceAudioBook;
     this.bookTextExtractorService = bookTextExtractorService;
     this.telegramFileService = telegramFileService;
     this.audioConverter = audioConverter;
@@ -77,7 +77,7 @@ public class BookCommand implements CommandProcess {
 
       botSenderService.sendTextReply(chatId, i18nService.getTranslate("bot.book.preparing"));
 
-      final byte[] wavBytes = aiChatService.narrateBook(bookText);
+      final byte[] wavBytes = aiChatServiceAudioBook.narrateBook(bookText);
       if (wavBytes == null || wavBytes.length == 0) {
         botSenderService.sendTextReply(chatId, i18nService.getTranslate("bot.book.tts.error"));
         return null;

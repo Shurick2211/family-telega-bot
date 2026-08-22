@@ -3,7 +3,6 @@ package org.nimko.com.ai;
 import static org.nimko.com.util.BotUtils.buildUserContentNew;
 
 import java.time.Duration;
-import java.util.Base64;
 import java.util.List;
 import org.nimko.com.config.AiChatProperties;
 import org.nimko.com.util.BotUtils;
@@ -19,23 +18,16 @@ public class AiChatService {
 
   private static final Logger log = LoggerFactory.getLogger(AiChatService.class);
   private static final int MAX_TOKENS = 8000;
-  private static final int AUDIO_MAX_TOKENS = 320000;
-  private static final String DEFAULT_TTS_VOICE = "kore";
   private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(30);
   private static final Duration READ_TIMEOUT = Duration.ofMinutes(5);
   private final String transcriptionModel;
-  private final String ttsModel;
-  private final String ttsVoice;
 
   private final AiChatProperties properties;
   private final RestClient primaryRestClient;
   private final RestClient secondaryRestClient;
 
-  public AiChatService(final String transcriptionModel, final String ttsModel,
-      final String ttsVoice, final AiChatProperties properties) {
+  public AiChatService(final String transcriptionModel, final AiChatProperties properties) {
     this.transcriptionModel = transcriptionModel;
-    this.ttsModel = ttsModel;
-    this.ttsVoice = ttsVoice;
     this.properties = properties;
     this.primaryRestClient = buildClient(properties, properties.apiKey());
     this.secondaryRestClient = properties.enableSecondary() && StringUtils.isNotBlank(properties.apiKeySecondary())
@@ -142,56 +134,6 @@ public class AiChatService {
     }
   }
 
-  public byte[] narrateBook(final String bookText) {
-    log.info("Narrate book!!!");
-    if (!properties.isConfigured() || StringUtils.isBlank(ttsModel) || StringUtils.isBlank(
-        bookText)) {
-      return null;
-    }
-
-    final AudioChatRequest request = new AudioChatRequest(
-        ttsModel,
-        List.of(
-            new ChatMessage("user", BotUtils.bookPrompt() + "\n\n" + bookText.trim())),
-        List.of("text", "audio"),
-        new AudioOptions(StringUtils.isNotBlank(ttsVoice) ? ttsVoice : DEFAULT_TTS_VOICE, "wav"),
-        AUDIO_MAX_TOKENS);
-
-    final RestClient client = resolveClient(false);
-    if (client == null) {
-      return null;
-    }
-
-    try {
-      final AudioChatResponse response = client.post()
-          .uri("/chat/completions")
-          .contentType(MediaType.APPLICATION_JSON)
-          .body(request)
-          .retrieve()
-          .body(AudioChatResponse.class);
-
-      // Audio-capable models return base64 audio under choices[0].message.audio.data
-      final String base64Audio = extractAudioData(response);
-      if (StringUtils.isBlank(base64Audio)) {
-        log.warn("TTS provider returned no audio data");
-        return null;
-      }
-
-      return Base64.getDecoder().decode(base64Audio);
-    } catch (final RuntimeException ex) {
-      log.error("Failed to query TTS provider", ex);
-      return null;
-    }
-  }
-
-  private String extractAudioData(final AudioChatResponse response) {
-    if (response == null || response.choices() == null || response.choices().isEmpty()) {
-      return null;
-    }
-    final AudioResponseMessage message = response.choices().get(0).message();
-    return message == null || message.audio() == null ? null : message.audio().data();
-  }
-
   public String transcribeAudio(final byte[] audioBytes, final String mimeType) {
     final var result = askInternal(
         "Transcribe this audio. Return only the transcribed text, nothing else.",
@@ -285,29 +227,4 @@ public class AiChatService {
 
   }
 
-  public record AudioChatRequest(String model, List<ChatMessage> messages,
-                                  List<String> modalities, AudioOptions audio,
-                                  int max_tokens) {
-
-  }
-
-  public record AudioOptions(String voice, String format) {
-
-  }
-
-  public record AudioChatResponse(List<AudioChoice> choices) {
-
-  }
-
-  public record AudioChoice(AudioResponseMessage message) {
-
-  }
-
-  public record AudioResponseMessage(String role, String content, AudioPayload audio) {
-
-  }
-
-  public record AudioPayload(String data) {
-
-  }
 }
