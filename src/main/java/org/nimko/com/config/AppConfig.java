@@ -30,8 +30,11 @@ import org.telegram.telegrambots.longpolling.TelegramBotsLongPollingApplication;
 public class AppConfig {
 
   @Bean
-  AiChatService aiChatService(final AiChatProperties aiProperties, final @Value("${transcription-model}") String transcriptionModel) {
-    return new AiChatService(transcriptionModel, aiProperties);
+  AiChatService aiChatService(final AiChatProperties aiProperties,
+      final @Value("${transcription-model}") String transcriptionModel,
+      final @Value("${tts-model}") String ttsModel,
+      final @Value("${tts-voice:}") String ttsVoice) {
+    return new AiChatService(transcriptionModel, ttsModel, ttsVoice, aiProperties);
   }
 
   @Bean(destroyMethod = "close")

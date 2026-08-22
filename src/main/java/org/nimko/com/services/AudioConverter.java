@@ -59,6 +59,46 @@ public class AudioConverter {
   }
 
 
+  public byte[] convertWavToMp3(final byte[] wavBytes) {
+    if (wavBytes == null || wavBytes.length == 0) {
+      throw new IllegalArgumentException("Input bytes are empty or null");
+    }
+
+    File tempWavFile = null;
+    File tempMp3File = null;
+
+    try {
+      tempWavFile = File.createTempFile("tts_input", ".wav");
+      tempMp3File = File.createTempFile("tts_output", ".mp3");
+
+      try (final FileOutputStream fos = new FileOutputStream(tempWavFile)) {
+        fos.write(wavBytes);
+      }
+
+      final ProcessBuilder pb = new ProcessBuilder(
+          ffmpegLocator.getExecutablePath(),
+          "-y",
+          "-i", tempWavFile.getAbsolutePath(),
+          "-acodec", "libmp3lame",
+          "-q:a", "0",
+          "-ar", "44100",
+          "-ac", "2",
+          tempMp3File.getAbsolutePath()
+      );
+
+      runProcess(pb);
+
+      return Files.readAllBytes(tempMp3File.toPath());
+
+    } catch (final Exception e) {
+      log.error("Error during WAV to MP3 conversion", e);
+      throw new RuntimeException("Failed to convert audio", e);
+    } finally {
+      cleanUpFile(tempWavFile);
+      cleanUpFile(tempMp3File);
+    }
+  }
+
   public byte[] extractAudioFromVideo(final byte[] videoBytes) {
     if (videoBytes == null || videoBytes.length == 0) {
       throw new IllegalArgumentException("Video bytes are empty or null");

@@ -69,7 +69,7 @@ public final class BotUtils {
     return message != null
         && (message.hasText() || StringUtils.isNotBlank(message.getCaption())
         || message.hasPhoto() || message.hasVoice() || message.hasAudio()
-        || message.hasVideoNote());
+        || message.hasVideoNote() || message.hasDocument());
   }
 
   public static String resolveIncomingText(final Message message) {
@@ -239,6 +239,10 @@ public final class BotUtils {
 
   public static String docPrompt() {
     return readResourceFile("prompts/doc_prompt.txt");
+  }
+
+  public static String bookPrompt() {
+    return readResourceFile("prompts/book_prompt.txt");
   }
 
   public static String extractContent(final ChatMessage message) {
