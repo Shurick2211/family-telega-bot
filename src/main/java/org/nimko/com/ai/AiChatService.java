@@ -152,8 +152,7 @@ public class AiChatService {
     final AudioChatRequest request = new AudioChatRequest(
         ttsModel,
         List.of(
-            new ChatMessage("system", BotUtils.bookPrompt()),
-            new ChatMessage("user", bookText.trim())),
+            new ChatMessage("user", BotUtils.bookPrompt() + "\n\n" + bookText.trim())),
         List.of("text", "audio"),
         new AudioOptions(StringUtils.isNotBlank(ttsVoice) ? ttsVoice : DEFAULT_TTS_VOICE, "wav"),
         AUDIO_MAX_TOKENS);

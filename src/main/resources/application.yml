@@ -52,5 +52,5 @@ ai:
   system-prompt: ${AI_SYSTEM_PROMPT}
 
 transcription-model: ${TRANSCRIPTION_MODEL}
-tts-model: ${TTS_MODEL:gemini-3.1-flash-preview-tts}
+tts-model: ${TTS_MODEL:gemini-3.1-flash-tts-preview}
 tts-voice: ${TTS_VOICE:kore}
