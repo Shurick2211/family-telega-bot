@@ -62,34 +62,36 @@ public class BookCommand implements CommandProcess {
       return null;
     }
 
-    try {
-      final byte[] fileBytes = telegramFileService.downloadAudioMessage(documentMessage);
-      if (fileBytes == null || fileBytes.length == 0) {
-        botSenderService.sendTextReply(chatId, i18nService.getTranslate("bot.book.download.error"));
-        return null;
+    java.util.concurrent.CompletableFuture.runAsync(() -> {
+      try {
+        final byte[] fileBytes = telegramFileService.downloadAudioMessage(documentMessage);
+        if (fileBytes == null || fileBytes.length == 0) {
+          botSenderService.sendTextReply(chatId, i18nService.getTranslate("bot.book.download.error"));
+          return;
+        }
+
+        final String bookText = bookTextExtractorService.extractText(fileBytes, filename);
+        if (StringUtils.isBlank(bookText)) {
+          botSenderService.sendTextReply(chatId, i18nService.getTranslate("bot.book.empty"));
+          return;
+        }
+
+        botSenderService.sendTextReply(chatId, i18nService.getTranslate("bot.book.preparing"));
+
+        final byte[] wavBytes = aiChatServiceAudioBook.narrateBook(bookText);
+        if (wavBytes == null || wavBytes.length == 0) {
+          botSenderService.sendTextReply(chatId, i18nService.getTranslate("bot.book.tts.error"));
+          return;
+        }
+
+        final byte[] mp3Bytes = audioConverter.convertWavToMp3(wavBytes);
+        final String audioFilename = "book_" + System.currentTimeMillis() + ".mp3";
+        botSenderService.sendAudioFile(chatId, mp3Bytes, audioFilename);
+      } catch (final Exception ex) {
+        log.error("Error processing /book command for chat {}", chatId, ex);
+        botSenderService.sendTextReply(chatId, i18nService.getTranslate("bot.book.error", ex.getMessage()));
       }
-
-      final String bookText = bookTextExtractorService.extractText(fileBytes, filename);
-      if (StringUtils.isBlank(bookText)) {
-        botSenderService.sendTextReply(chatId, i18nService.getTranslate("bot.book.empty"));
-        return null;
-      }
-
-      botSenderService.sendTextReply(chatId, i18nService.getTranslate("bot.book.preparing"));
-
-      final byte[] wavBytes = aiChatServiceAudioBook.narrateBook(bookText);
-      if (wavBytes == null || wavBytes.length == 0) {
-        botSenderService.sendTextReply(chatId, i18nService.getTranslate("bot.book.tts.error"));
-        return null;
-      }
-
-      final byte[] mp3Bytes = audioConverter.convertWavToMp3(wavBytes);
-      final String audioFilename = "book_" + System.currentTimeMillis() + ".mp3";
-      botSenderService.sendAudioFile(chatId, mp3Bytes, audioFilename);
-    } catch (final Exception ex) {
-      log.error("Error processing /book command for chat {}", chatId, ex);
-      botSenderService.sendTextReply(chatId, i18nService.getTranslate("bot.book.error", ex.getMessage()));
-    }
+    });
     return null;
   }
 
