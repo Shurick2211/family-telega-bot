@@ -3,6 +3,7 @@ package org.nimko.com.ai;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.type.TypeReference;
 import java.util.function.Consumer;
 import java.time.Duration;
 import java.util.Base64;
@@ -27,14 +28,16 @@ public class AiChatServiceAudioBook {
   private static final Duration READ_TIMEOUT = Duration.ofMinutes(5);
   private final String ttsModel;
   private final String ttsVoice;
+  private final String transcriptionModel;
   private final AiChatProperties properties;
   private final RestClient restClient;
   private final AudioConverter audioConverter;
 
   public AiChatServiceAudioBook(final String ttsModel, final String ttsVoice,
-      final AiChatProperties properties, final AudioConverter audioConverter) {
+      final String transcriptionModel, final AiChatProperties properties, final AudioConverter audioConverter) {
     this.ttsModel = ttsModel;
     this.ttsVoice = ttsVoice;
+    this.transcriptionModel = transcriptionModel;
     this.properties = properties;
     this.audioConverter = audioConverter;
     this.restClient = buildClient(properties, properties.apiKey());
@@ -137,13 +140,102 @@ public class AiChatServiceAudioBook {
   }
 
   private byte[] narrateSingleChunk(final String chunkText) {
+    if (restClient == null || StringUtils.isBlank(chunkText)) {
+      return null;
+    }
+
+    final List<RoleSegment> segments = breakDownTextByRoles(chunkText);
+    if (segments == null || segments.isEmpty()) {
+      log.warn("Failed to break down text by roles, falling back to single voice narrator.");
+      return narrateWithVoice(chunkText, getVoiceForRole("NARRATOR"));
+    }
+
+    final List<byte[]> segmentAudioChunks = new java.util.ArrayList<>();
+    for (final RoleSegment segment : segments) {
+      if (StringUtils.isBlank(segment.text())) {
+        continue;
+      }
+      final String voice = getVoiceForRole(segment.role());
+      final byte[] audio = narrateWithVoice(segment.text(), voice);
+      if (audio != null && audio.length > 0) {
+        segmentAudioChunks.add(audio);
+      }
+    }
+
+    if (segmentAudioChunks.isEmpty()) {
+      return null;
+    }
+
+    if (segmentAudioChunks.size() == 1) {
+      return segmentAudioChunks.get(0);
+    }
+
+    return audioConverter.concatenatePcmAndConvertToWav(segmentAudioChunks, 24000, 1);
+  }
+
+  private String getVoiceForRole(final String role) {
+    if (StringUtils.isBlank(role)) {
+      return StringUtils.isNotBlank(ttsVoice) ? ttsVoice : DEFAULT_TTS_VOICE;
+    }
+    return switch (role.toUpperCase()) {
+      case "MALE" -> "charon";
+      case "FEMALE" -> "kore";
+      case "NARRATOR" -> StringUtils.isNotBlank(ttsVoice) ? ttsVoice : DEFAULT_TTS_VOICE;
+      default -> StringUtils.isNotBlank(ttsVoice) ? ttsVoice : DEFAULT_TTS_VOICE;
+    };
+  }
+
+  private List<RoleSegment> breakDownTextByRoles(final String text) {
+    final String prompt = BotUtils.rolesPrompt() + "\n\n" + text.trim();
+    
+    final Content content = new Content("user", List.of(new Part(prompt, null)));
+    
+    final String model = StringUtils.isNotBlank(transcriptionModel) ? transcriptionModel : 
+        (properties.defaultModel() != null ? properties.defaultModel() : "gemini-2.5-flash");
+    
+    final GenerateContentRequest request = new GenerateContentRequest(
+        null,
+        List.of(content),
+        new GenerationConfig(0.1, null, null)
+    );
+
+    try {
+      final String rawResponse = restClient.post()
+          .uri("/models/" + model + ":generateContent")
+          .contentType(MediaType.APPLICATION_JSON)
+          .body(request)
+          .retrieve()
+          .body(String.class);
+
+      String jsonText = extractText(rawResponse);
+      if (StringUtils.isNotBlank(jsonText)) {
+        jsonText = jsonText.trim();
+        if (jsonText.startsWith("```json")) {
+            jsonText = jsonText.substring(7);
+        } else if (jsonText.startsWith("```")) {
+            jsonText = jsonText.substring(3);
+        }
+        if (jsonText.endsWith("```")) {
+            jsonText = jsonText.substring(0, jsonText.length() - 3);
+        }
+        jsonText = jsonText.trim();
+        
+        return OBJECT_MAPPER.readValue(jsonText, new TypeReference<List<RoleSegment>>() {});
+      }
+    } catch (final Exception ex) {
+      log.error("Failed to analyze text for roles", ex);
+    }
+    return null;
+  }
+
+  private byte[] narrateWithVoice(final String chunkText, final String voiceName) {
     final String prompt = BotUtils.bookPrompt() + "\n\n" + chunkText.trim();
     
     final Content content = new Content("user", List.of(new Part(prompt, null)));
     final GenerationConfig config = new GenerationConfig(
         null,
         List.of("AUDIO"),
-        new SpeechConfig(new VoiceConfig(new PrebuiltVoiceConfig(StringUtils.isNotBlank(ttsVoice) ? ttsVoice : DEFAULT_TTS_VOICE)))
+        new SpeechConfig(new VoiceConfig(new PrebuiltVoiceConfig(voiceName)))
     );
 
     final GenerateContentRequest request = new GenerateContentRequest(
@@ -151,10 +243,6 @@ public class AiChatServiceAudioBook {
         List.of(content),
         config
     );
-
-    if (restClient == null) {
-      return null;
-    }
 
     try {
       final String rawResponse = restClient.post()
@@ -166,16 +254,19 @@ public class AiChatServiceAudioBook {
 
       final byte[] audioBytes = extractAudioBytes(rawResponse);
       if (audioBytes == null || audioBytes.length == 0) {
-        log.warn("TTS provider returned no audio data. Raw response: {}", rawResponse);
+        log.warn("TTS provider returned no audio data for voice {}.", voiceName);
         return null;
       }
 
       return audioBytes;
     } catch (final RuntimeException ex) {
-      log.error("Failed to query TTS provider for chunk", ex);
+      log.error("Failed to query TTS provider for segment with voice {}", voiceName, ex);
       return null;
     }
   }
+
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public record RoleSegment(String role, String text) {}
 
   private List<String> splitIntoChunks(final String text, final int maxChunkSize) {
     final List<String> chunks = new java.util.ArrayList<>();

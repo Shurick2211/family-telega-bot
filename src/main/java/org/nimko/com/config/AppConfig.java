@@ -40,8 +40,9 @@ public class AppConfig {
   AiChatServiceAudioBook aiChatServiceAudioBook(final AiChatProperties aiProperties,
       final @Value("${tts-model}") String ttsModel,
       final @Value("${tts-voice:}") String ttsVoice,
+      final @Value("${transcription-model}") String transcriptionModel,
       final AudioConverter audioConverter) {
-    return new AiChatServiceAudioBook(ttsModel, ttsVoice, aiProperties, audioConverter);
+    return new AiChatServiceAudioBook(ttsModel, ttsVoice, transcriptionModel, aiProperties, audioConverter);
   }
 
   @Bean(destroyMethod = "close")
