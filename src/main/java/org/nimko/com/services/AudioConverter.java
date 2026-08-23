@@ -197,6 +197,49 @@ public class AudioConverter {
     }
   }
 
+  public byte[] concatenatePcmAndConvertToMp3(final List<byte[]> pcmChunks, final int sampleRate, final int channels) {
+    if (pcmChunks == null || pcmChunks.isEmpty()) {
+      return null;
+    }
+    
+    File tempPcmFile = null;
+    File tempOutputFile = null;
+
+    try {
+      tempPcmFile = File.createTempFile("concat_output", ".pcm");
+      tempOutputFile = File.createTempFile("concat_output", ".mp3");
+
+      try (final FileOutputStream fos = new FileOutputStream(tempPcmFile)) {
+        for (final byte[] chunk : pcmChunks) {
+          fos.write(chunk);
+        }
+      }
+
+      final ProcessBuilder pb = new ProcessBuilder(
+          ffmpegLocator.getExecutablePath(),
+          "-y",
+          "-f", "s16le",
+          "-ar", String.valueOf(sampleRate),
+          "-ac", String.valueOf(channels),
+          "-i", tempPcmFile.getAbsolutePath(),
+          "-acodec", "libmp3lame",
+          "-q:a", "2",
+          tempOutputFile.getAbsolutePath()
+      );
+
+      runProcess(pb);
+
+      return Files.readAllBytes(tempOutputFile.toPath());
+
+    } catch (final Exception e) {
+      log.error("Error during PCM concatenation and MP3 conversion", e);
+      throw new RuntimeException("Failed to concatenate audio to MP3", e);
+    } finally {
+      cleanUpFile(tempPcmFile);
+      cleanUpFile(tempOutputFile);
+    }
+  }
+
   public byte[] extractAudioFromVideo(final byte[] videoBytes) {
     if (videoBytes == null || videoBytes.length == 0) {
       throw new IllegalArgumentException("Video bytes are empty or null");

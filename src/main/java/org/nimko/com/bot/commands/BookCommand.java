@@ -23,20 +23,17 @@ public class BookCommand implements CommandProcess {
   private final AiChatServiceAudioBook aiChatServiceAudioBook;
   private final BookTextExtractorService bookTextExtractorService;
   private final TelegramFileService telegramFileService;
-  private final AudioConverter audioConverter;
   private final BotSenderService botSenderService;
   private final I18nService i18nService;
 
   public BookCommand(final AiChatServiceAudioBook aiChatServiceAudioBook,
       final BookTextExtractorService bookTextExtractorService,
       final TelegramFileService telegramFileService,
-      final AudioConverter audioConverter,
       final BotSenderService botSenderService,
       final I18nService i18nService) {
     this.aiChatServiceAudioBook = aiChatServiceAudioBook;
     this.bookTextExtractorService = bookTextExtractorService;
     this.telegramFileService = telegramFileService;
-    this.audioConverter = audioConverter;
     this.botSenderService = botSenderService;
     this.i18nService = i18nService;
   }
@@ -79,17 +76,16 @@ public class BookCommand implements CommandProcess {
         final String preparingText = i18nService.getTranslate("bot.book.preparing");
         final Integer progressMessageId = botSenderService.sendTextAndGetMessageId(chatId, preparingText + " 0%");
 
-        final byte[] wavBytes = aiChatServiceAudioBook.narrateBook(bookText, progress -> {
+        final byte[] mp3Bytes = aiChatServiceAudioBook.narrateBook(bookText, progress -> {
           if (progressMessageId != null) {
             botSenderService.editMessageText(chatId, progressMessageId, preparingText + " " + progress + "%");
           }
         });
-        if (wavBytes == null || wavBytes.length == 0) {
+        if (mp3Bytes == null || mp3Bytes.length == 0) {
           botSenderService.sendTextReply(chatId, i18nService.getTranslate("bot.book.tts.error"));
           return;
         }
 
-        final byte[] mp3Bytes = audioConverter.convertWavToMp3(wavBytes);
         final String audioFilename = filename + "_" + System.currentTimeMillis() + ".mp3";
         botSenderService.sendAudioFile(chatId, mp3Bytes, audioFilename);
       } catch (final Exception ex) {

@@ -3,11 +3,16 @@ package org.nimko.com.ai;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.core.type.TypeReference;
 import java.util.function.Consumer;
 import java.time.Duration;
 import java.util.Base64;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import org.nimko.com.config.AiChatProperties;
 import org.nimko.com.services.AudioConverter;
 import org.nimko.com.util.BotUtils;
@@ -22,8 +27,10 @@ import org.springframework.web.client.RestClient;
 public class AiChatServiceAudioBook {
 
   private static final Logger log = LoggerFactory.getLogger(AiChatServiceAudioBook.class);
-  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper().setSerializationInclusion(JsonInclude.Include.NON_NULL);
-  private static final String DEFAULT_TTS_VOICE = "kore";
+  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper()
+      .setSerializationInclusion(JsonInclude.Include.NON_NULL)
+      .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+  private static final String DEFAULT_TTS_VOICE = "Puck";
   private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(30);
   private static final Duration READ_TIMEOUT = Duration.ofMinutes(5);
   private final String ttsModel;
@@ -74,32 +81,55 @@ public class AiChatServiceAudioBook {
     final List<String> chunks = splitIntoChunks(bookText, 1000);
     log.info("Split book text into {} chunks for narration", chunks.size());
 
-    final List<byte[]> audioChunks = new java.util.ArrayList<>();
-    for (int i = 0; i < chunks.size(); i++) {
-      final String chunk = chunks.get(i);
-      log.info("Narrating chunk {}/{} (length: {})", i + 1, chunks.size(), chunk.length());
-      
-      byte[] audioBytes = narrateSingleChunk(chunk);
-      if (audioBytes == null || audioBytes.length == 0) {
-        log.warn("Chunk {}/{} narration was empty or blocked. Attempting to sanitize and retry...", i + 1, chunks.size());
-        final String sanitizedText = sanitizeTextForNarration(chunk);
-        if (StringUtils.isNotBlank(sanitizedText)) {
-          log.info("Sanitized text for chunk {}: {}", i + 1, sanitizedText);
-          audioBytes = narrateSingleChunk(sanitizedText);
-        }
-      }
+    final ExecutorService executor = Executors.newFixedThreadPool(3);
+    final AtomicInteger completedChunks = new AtomicInteger(0);
 
-      if (audioBytes != null && audioBytes.length > 0) {
-        audioChunks.add(audioBytes);
-      } else {
-        log.warn("Chunk {}/{} narration failed after sanitization. Skipping this chunk.", i + 1, chunks.size());
-      }
+    final List<CompletableFuture<byte[]>> futures = new java.util.ArrayList<>();
+
+    for (int i = 0; i < chunks.size(); i++) {
+      final int chunkIndex = i;
+      final String chunk = chunks.get(i);
       
-      if (progressCallback != null) {
-          final int progress = (int) (((double) (i + 1) / chunks.size()) * 100);
-          progressCallback.accept(progress);
-      }
+      final CompletableFuture<byte[]> future = CompletableFuture.supplyAsync(() -> {
+        log.info("Narrating chunk {}/{} (length: {})", chunkIndex + 1, chunks.size(), chunk.length());
+        
+        byte[] audioBytes = narrateSingleChunk(chunk);
+        if (audioBytes == null || audioBytes.length == 0) {
+          log.warn("Chunk {}/{} narration was empty or blocked. Attempting to sanitize and retry...", chunkIndex + 1, chunks.size());
+          final String sanitizedText = sanitizeTextForNarration(chunk);
+          if (StringUtils.isNotBlank(sanitizedText)) {
+            audioBytes = narrateSingleChunk(sanitizedText);
+          }
+        }
+        
+        if (audioBytes == null || audioBytes.length == 0) {
+          log.warn("Chunk {}/{} narration failed after sanitization. Skipping this chunk.", chunkIndex + 1, chunks.size());
+        }
+
+        if (progressCallback != null) {
+            final int progress = (int) (((double) completedChunks.incrementAndGet() / chunks.size()) * 100);
+            progressCallback.accept(progress);
+        }
+        
+        return audioBytes;
+      }, executor);
+      
+      futures.add(future);
     }
+
+    final List<byte[]> audioChunks = new java.util.ArrayList<>();
+    for (int i = 0; i < futures.size(); i++) {
+        try {
+            final byte[] audioBytes = futures.get(i).join();
+            if (audioBytes != null && audioBytes.length > 0) {
+                audioChunks.add(audioBytes);
+            }
+        } catch (final Exception ex) {
+            log.error("Failed to narrate chunk {}", i + 1, ex);
+        }
+    }
+    
+    executor.shutdown();
 
     if (audioChunks.isEmpty()) {
       log.error("All chunks failed to narrate.");
@@ -107,7 +137,7 @@ public class AiChatServiceAudioBook {
     }
 
     log.info("Successfully narrated {}/{} chunks. Concatenating audio...", audioChunks.size(), chunks.size());
-    return audioConverter.concatenatePcmAndConvertToWav(audioChunks, 24000, 1);
+    return audioConverter.concatenatePcmAndConvertToMp3(audioChunks, 24000, 1);
   }
 
   private String sanitizeTextForNarration(final String text) {
@@ -115,7 +145,7 @@ public class AiChatServiceAudioBook {
     
     final SystemInstruction sys = new SystemInstruction(List.of(new Part("You are a concise assistant inside a Telegram bot.", null)));
     final Content content = new Content("user", List.of(new Part(prompt, null)));
-    final GenerateContentRequest request = new GenerateContentRequest(sys, List.of(content), new GenerationConfig(0.3, null, null));
+    final GenerateContentRequest request = new GenerateContentRequest(sys, List.of(content), new GenerationConfig(0.3, null, null, null));
     
     if (restClient == null) {
       return null;
@@ -178,8 +208,8 @@ public class AiChatServiceAudioBook {
       return StringUtils.isNotBlank(ttsVoice) ? ttsVoice : DEFAULT_TTS_VOICE;
     }
     return switch (role.toUpperCase()) {
-      case "MALE" -> "charon";
-      case "FEMALE" -> "kore";
+      case "MALE" -> "Charon";
+      case "FEMALE" -> "Kore";
       case "NARRATOR" -> StringUtils.isNotBlank(ttsVoice) ? ttsVoice : DEFAULT_TTS_VOICE;
       default -> StringUtils.isNotBlank(ttsVoice) ? ttsVoice : DEFAULT_TTS_VOICE;
     };
@@ -191,12 +221,12 @@ public class AiChatServiceAudioBook {
     final Content content = new Content("user", List.of(new Part(prompt, null)));
     
     final String model = StringUtils.isNotBlank(transcriptionModel) ? transcriptionModel : 
-        (properties.defaultModel() != null ? properties.defaultModel() : "gemini-2.5-flash");
+        (properties.defaultModel() != null ? properties.defaultModel() : "gemini-3.5-flash");
     
     final GenerateContentRequest request = new GenerateContentRequest(
         null,
         List.of(content),
-        new GenerationConfig(0.1, null, null)
+        new GenerationConfig(0.1, null, null, "application/json")
     );
 
     try {
@@ -221,6 +251,8 @@ public class AiChatServiceAudioBook {
         jsonText = jsonText.trim();
         
         return OBJECT_MAPPER.readValue(jsonText, new TypeReference<List<RoleSegment>>() {});
+      } else {
+        log.warn("Text analysis for roles returned empty response.");
       }
     } catch (final Exception ex) {
       log.error("Failed to analyze text for roles", ex);
@@ -228,14 +260,20 @@ public class AiChatServiceAudioBook {
     return null;
   }
 
-  private byte[] narrateWithVoice(final String chunkText, final String voiceName) {
-    final String prompt = BotUtils.bookPrompt() + "\n\n" + chunkText.trim();
+  private byte[] narrateWithVoice(final String chunkText, String voiceName) {
+    if (StringUtils.isBlank(voiceName)) {
+      voiceName = DEFAULT_TTS_VOICE;
+    }
+    voiceName = StringUtils.capitalize(voiceName);
+
+    final String prompt = chunkText.trim();
     
     final Content content = new Content("user", List.of(new Part(prompt, null)));
     final GenerationConfig config = new GenerationConfig(
         null,
         List.of("AUDIO"),
-        new SpeechConfig(new VoiceConfig(new PrebuiltVoiceConfig(voiceName)))
+        new SpeechConfig(new VoiceConfig(new PrebuiltVoiceConfig(voiceName))),
+        null
     );
 
     final GenerateContentRequest request = new GenerateContentRequest(
@@ -388,7 +426,8 @@ public class AiChatServiceAudioBook {
   public record GenerationConfig(
       Double temperature,
       List<String> responseModalities,
-      SpeechConfig speechConfig) {}
+      SpeechConfig speechConfig,
+      String responseMimeType) {}
 
   @JsonInclude(JsonInclude.Include.NON_NULL)
   public record SpeechConfig(VoiceConfig voiceConfig) {}
