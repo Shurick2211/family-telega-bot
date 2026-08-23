@@ -53,4 +53,4 @@ ai:
 
 transcription-model: ${TRANSCRIPTION_MODEL}
 tts-model: ${TTS_MODEL:gemini-3.1-flash-tts-preview}
-tts-voice: ${TTS_VOICE:kore}
+tts-voice: ${TTS_VOICE:Puck}
