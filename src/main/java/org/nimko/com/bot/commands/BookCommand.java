@@ -76,16 +76,21 @@ public class BookCommand implements CommandProcess {
           return;
         }
 
-        botSenderService.sendTextReply(chatId, i18nService.getTranslate("bot.book.preparing"));
+        final String preparingText = i18nService.getTranslate("bot.book.preparing");
+        final Integer progressMessageId = botSenderService.sendTextAndGetMessageId(chatId, preparingText + " 0%");
 
-        final byte[] wavBytes = aiChatServiceAudioBook.narrateBook(bookText);
+        final byte[] wavBytes = aiChatServiceAudioBook.narrateBook(bookText, progress -> {
+          if (progressMessageId != null) {
+            botSenderService.editMessageText(chatId, progressMessageId, preparingText + " " + progress + "%");
+          }
+        });
         if (wavBytes == null || wavBytes.length == 0) {
           botSenderService.sendTextReply(chatId, i18nService.getTranslate("bot.book.tts.error"));
           return;
         }
 
         final byte[] mp3Bytes = audioConverter.convertWavToMp3(wavBytes);
-        final String audioFilename = "book_" + System.currentTimeMillis() + ".mp3";
+        final String audioFilename = filename + "_" + System.currentTimeMillis() + ".mp3";
         botSenderService.sendAudioFile(chatId, mp3Bytes, audioFilename);
       } catch (final Exception ex) {
         log.error("Error processing /book command for chat {}", chatId, ex);

@@ -3,6 +3,7 @@ package org.nimko.com.ai;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.function.Consumer;
 import java.time.Duration;
 import java.util.Base64;
 import java.util.List;
@@ -61,7 +62,7 @@ public class AiChatServiceAudioBook {
     return factory;
   }
 
-  public byte[] narrateBook(final String bookText) {
+  public byte[] narrateBook(final String bookText, final Consumer<Integer> progressCallback) {
     log.info("Narrate book!!!");
     if (!properties.isConfigured() || StringUtils.isBlank(ttsModel) || StringUtils.isBlank(bookText)) {
       return null;
@@ -89,6 +90,11 @@ public class AiChatServiceAudioBook {
         audioChunks.add(audioBytes);
       } else {
         log.warn("Chunk {}/{} narration failed after sanitization. Skipping this chunk.", i + 1, chunks.size());
+      }
+      
+      if (progressCallback != null) {
+          final int progress = (int) (((double) (i + 1) / chunks.size()) * 100);
+          progressCallback.accept(progress);
       }
     }
 
