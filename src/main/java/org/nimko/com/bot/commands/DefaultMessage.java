@@ -28,11 +28,11 @@ public class DefaultMessage implements CommandProcess{
   private static final Logger log = LoggerFactory.getLogger(DefaultMessage.class);
 
   public DefaultMessage(final AiChatService aiChatService,
-      final BotProperties telegramProperties, final ChatContextRepository chatContextRepository,
+      final BotProperties botProperties, final ChatContextRepository chatContextRepository,
       final ObjectMapper objectMapper) {
     this.aiChatService = aiChatService;
-    this.botUsername = telegramProperties.username();
-    this.newsChatId = telegramProperties.newsChatId();
+    this.botUsername = botProperties.username();
+    this.newsChatId = botProperties.newsChatId();
     this.chatContextRepository = chatContextRepository;
     this.objectMapper = objectMapper;
   }

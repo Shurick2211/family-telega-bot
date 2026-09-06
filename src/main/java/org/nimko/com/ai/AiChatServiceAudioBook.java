@@ -143,7 +143,7 @@ public class AiChatServiceAudioBook {
   private String sanitizeTextForNarration(final String text) {
     final String prompt = "Rewrite the following book text to be completely safe, mild, and free of any potential safety triggers (such as intense violence, horror, or sensitive words), while fully preserving the plot, characters, and narrative flow for audio narration. Return ONLY the rewritten text, nothing else:\n\n" + text.trim();
     
-    final SystemInstruction sys = new SystemInstruction(List.of(new Part("You are a concise assistant inside a Telegram bot.", null)));
+    final SystemInstruction sys = new SystemInstruction(List.of(new Part("You are a concise assistant inside a bot.", null)));
     final Content content = new Content("user", List.of(new Part(prompt, null)));
     final GenerateContentRequest request = new GenerateContentRequest(sys, List.of(content), new GenerationConfig(0.3, null, null, null));
     

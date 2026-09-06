@@ -401,14 +401,14 @@ public final class BotUtils {
         Map.of("type", "image_url", "image_url", Map.of("url", dataUrl)));
   }
 
-  public static void addTranscribedInContext(final String telegramUser, final String username,
+  public static void addTranscribedInContext(final String botUser, final String username,
       final String transcribed,
       final Long chatId, final int messageId, final ChatContextRepository chatContextRepository,
       final boolean groupChat) {
     log.info("Saved context for {}", username);
     final var entity = new ChatContextEntity()
         .setChatId(chatId)
-        .setUserName(telegramUser)
+        .setUserName(botUser)
         .setName(username)
         .setMessageId(messageId)
         .setMessage(transcribed)

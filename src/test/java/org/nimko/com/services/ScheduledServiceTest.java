@@ -8,8 +8,8 @@ import java.time.ZoneId;
 import java.util.Collections;
 import org.junit.jupiter.api.Test;
 import org.nimko.com.ai.AiChatService;
+import org.nimko.com.bot.BotProperties;
 import org.nimko.com.bot.BotSenderService;
-import org.nimko.com.impl_bot.telegram.TelegramBotProperties;
 import org.nimko.com.repository.ChatContextRepository;
 import org.nimko.com.repository.DailySummaryChatRepository;
 
@@ -22,7 +22,7 @@ public class ScheduledServiceTest {
     ObjectMapper objectMapper = mock(ObjectMapper.class);
     AiChatService aiChatService = mock(AiChatService.class);
     BotSenderService botSenderService = mock(BotSenderService.class);
-    TelegramBotProperties telegramBotProperties = mock(TelegramBotProperties.class);
+    BotProperties botProperties = mock(BotProperties.class);
 
     TermuxService termuxService = mock(TermuxService.class);
     ScheduledService service = new ScheduledService(
@@ -31,7 +31,7 @@ public class ScheduledServiceTest {
         objectMapper,
         aiChatService,
         botSenderService,
-        telegramBotProperties,
+        botProperties,
         ZoneId.of("Europe/Kyiv"),
         termuxService
     );
@@ -49,7 +49,7 @@ public class ScheduledServiceTest {
     ObjectMapper objectMapper = mock(ObjectMapper.class);
     AiChatService aiChatService = mock(AiChatService.class);
     BotSenderService botSenderService = mock(BotSenderService.class);
-    TelegramBotProperties telegramBotProperties = mock(TelegramBotProperties.class);
+    BotProperties botProperties = mock(BotProperties.class);
 
     when(chatContextRepository.findDistinctChatIdByCreatedAtBetweenAndGroupChatTrue(any(Instant.class), any(Instant.class)))
         .thenReturn(Collections.emptyList());
@@ -61,7 +61,7 @@ public class ScheduledServiceTest {
         objectMapper,
         aiChatService,
         botSenderService,
-        telegramBotProperties,
+        botProperties,
         ZoneId.of("Europe/Kyiv"),
         termuxService
     );

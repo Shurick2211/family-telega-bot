@@ -55,15 +55,15 @@ public class ReactionCommand implements CommandProcess {
     }
 
     final var user = messageReaction.getUser();
-    final String telegramUser = user != null ? user.getUsername() : "Unknown";
+    final String botUser = user != null ? user.getUsername() : "Unknown";
     final String username = user != null ? user.getPersonName() : "Unknown";
     final boolean groupChat = messageReaction.isGroupChat();
 
     for (final String reactionValue : messageReaction.getReactionValues()) {
       if (StringUtils.isNotBlank(reactionValue)) {
         log.info("Received reaction: reaction={} chatId={} messageId={} user={}",
-            reactionValue, chatId, messageId, telegramUser);
-        addTranscribedInContext(telegramUser, username, "[emotion] " + reactionValue, chatId, messageId, chatContextRepository, groupChat);
+            reactionValue, chatId, messageId, botUser);
+        addTranscribedInContext(botUser, username, "[emotion] " + reactionValue, chatId, messageId, chatContextRepository, groupChat);
       }
     }
   }
