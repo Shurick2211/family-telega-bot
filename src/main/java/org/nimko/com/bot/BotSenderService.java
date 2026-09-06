@@ -1,5 +1,6 @@
 package org.nimko.com.bot;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.nimko.com.config.TelegramBotProperties;
@@ -139,6 +140,49 @@ public class BotSenderService implements FileSender {
       }
       log.error("Failed to send Telegram response to chat {}", chatId, ex);
       return SendResult.FAILED;
+    }
+  }
+
+  public Integer sendTextAndGetMessageId(final Long chatId, final String text) {
+    if (StringUtils.isBlank(text)) {
+      return null;
+    }
+    final LinkedMultiValueMap<String, String> form = new LinkedMultiValueMap<>();
+    form.add("chat_id", chatId.toString());
+    form.add("text", text);
+    try {
+      final JsonNode response = telegramClient.post()
+          .uri("/bot{token}/sendMessage", botToken)
+          .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+          .body(form)
+          .retrieve()
+          .body(JsonNode.class);
+      if (response != null && response.has("result")) {
+        return response.get("result").get("message_id").asInt();
+      }
+    } catch (final RuntimeException ex) {
+      log.error("Failed to send text and get message ID to chat {}", chatId, ex);
+    }
+    return null;
+  }
+
+  public void editMessageText(final Long chatId, final Integer messageId, final String text) {
+    if (messageId == null || StringUtils.isBlank(text)) {
+      return;
+    }
+    final LinkedMultiValueMap<String, String> form = new LinkedMultiValueMap<>();
+    form.add("chat_id", chatId.toString());
+    form.add("message_id", messageId.toString());
+    form.add("text", text);
+    try {
+      telegramClient.post()
+          .uri("/bot{token}/editMessageText", botToken)
+          .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+          .body(form)
+          .retrieve()
+          .toBodilessEntity();
+    } catch (final RuntimeException ex) {
+      log.error("Failed to edit message text for chat {} message {}", chatId, messageId, ex);
     }
   }
 

@@ -35,7 +35,7 @@ public class ScheduledService {
   private static final String MONTHLY_SUMMARY_PROMPT = "Подведи юмористические (шуточные) итоги месяца";
   private static final LocalTime LOW_BATTERY_ALERT_START = LocalTime.of(8, 0);
   private static final LocalTime LOW_BATTERY_ALERT_END = LocalTime.of(21, 0);
-  private static final int LOW_BATTERY_THRESHOLD_PERCENT = 20;
+  private static final int LOW_BATTERY_THRESHOLD_PERCENT = 30;
   private static final int LOW_BATTERY_FLASHLIGHT_BLINKS = 3;
   private static final long LOW_BATTERY_FLASHLIGHT_INTERVAL_MS = 300;
   private static final String CHARGE_ME_MESSAGE = "Поставь меня на зарядку!";
@@ -58,7 +58,7 @@ public class ScheduledService {
         now , appZoneId, ZoneId.systemDefault(), batteryInfo);
 
     final LocalTime currentTime = now.toLocalTime();
-    if (!currentTime.isBefore(LOW_BATTERY_ALERT_START) && !currentTime.isAfter(LOW_BATTERY_ALERT_END)
+    if (currentTime.isAfter(LOW_BATTERY_ALERT_START) && currentTime.isBefore(LOW_BATTERY_ALERT_END)
         && batteryInfo.percentage() <= LOW_BATTERY_THRESHOLD_PERCENT) {
       log.info("Low battery detected: {}%, alerting", batteryInfo.percentage());
       termuxService.blinkFlashlight(LOW_BATTERY_FLASHLIGHT_BLINKS, LOW_BATTERY_FLASHLIGHT_INTERVAL_MS);

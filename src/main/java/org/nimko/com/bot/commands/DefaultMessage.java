@@ -55,7 +55,7 @@ public class DefaultMessage implements CommandProcess{
 
     if ((groupChat || chatId != newsChatId) && StringUtils.isNotBlank(normalizedText)) {
       final String authorUsername = BotUtils.getSenderName(message.getFrom());
-      addTranscribedInContext(authorUsername, authorUsername,
+      addTranscribedInContext(authorUsername, BotUtils.getSenderPersonName(message.getFrom()),
           BotUtils.stripTextPrefix(normalizedText), chatId, messageId, chatContextRepository, groupChat);
     }
 

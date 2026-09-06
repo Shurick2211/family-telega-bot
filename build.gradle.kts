@@ -25,6 +25,7 @@ dependencies {
     implementation("org.telegram:telegrambots-springboot-longpolling-starter:9.5.0")
     implementation("ws.schild:jave-core:3.3.1")
     implementation("org.apache.poi:poi-ooxml:5.3.0")
+    implementation("org.apache.pdfbox:pdfbox:3.0.3")
     implementation("org.apache.commons:commons-lang3:3.17.0")
 
     compileOnly("org.projectlombok:lombok")

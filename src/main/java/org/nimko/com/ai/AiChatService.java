@@ -226,4 +226,5 @@ public class AiChatService {
   public record Choice(ChatMessage message) {
 
   }
+
 }

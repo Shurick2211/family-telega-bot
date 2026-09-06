@@ -9,6 +9,7 @@ import java.time.ZoneId;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.nimko.com.ai.AiChatService;
+import org.nimko.com.ai.AiChatServiceAudioBook;
 import org.nimko.com.bot.BotSenderService;
 import org.nimko.com.bot.FamilyTelegramBot;
 import org.nimko.com.bot.commands.CommandProcess;
@@ -22,6 +23,7 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Scope;
 import org.telegram.telegrambots.longpolling.TelegramBotsLongPollingApplication;
 
 @Configuration
@@ -30,8 +32,18 @@ import org.telegram.telegrambots.longpolling.TelegramBotsLongPollingApplication;
 public class AppConfig {
 
   @Bean
-  AiChatService aiChatService(final AiChatProperties aiProperties, final @Value("${transcription-model}") String transcriptionModel) {
+  AiChatService aiChatService(final AiChatProperties aiProperties,
+      final @Value("${transcription-model}") String transcriptionModel) {
     return new AiChatService(transcriptionModel, aiProperties);
+  }
+
+  @Bean
+  AiChatServiceAudioBook aiChatServiceAudioBook(final AiChatProperties aiProperties,
+      final @Value("${tts-model}") String ttsModel,
+      final @Value("${tts-voice:}") String ttsVoice,
+      final @Value("${transcription-model}") String transcriptionModel,
+      final AudioConverter audioConverter) {
+    return new AiChatServiceAudioBook(ttsModel, ttsVoice, transcriptionModel, aiProperties, audioConverter);
   }
 
   @Bean(destroyMethod = "close")

@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -58,6 +59,186 @@ public class AudioConverter {
     }
   }
 
+
+  public byte[] convertWavToMp3(final byte[] wavBytes) {
+    if (wavBytes == null || wavBytes.length == 0) {
+      throw new IllegalArgumentException("Input bytes are empty or null");
+    }
+
+    File tempWavFile = null;
+    File tempMp3File = null;
+
+    try {
+      tempWavFile = File.createTempFile("tts_input", ".wav");
+      tempMp3File = File.createTempFile("tts_output", ".mp3");
+
+      try (final FileOutputStream fos = new FileOutputStream(tempWavFile)) {
+        fos.write(wavBytes);
+      }
+
+      final ProcessBuilder pb = new ProcessBuilder(
+          ffmpegLocator.getExecutablePath(),
+          "-y",
+          "-i", tempWavFile.getAbsolutePath(),
+          "-acodec", "libmp3lame",
+          "-q:a", "0",
+          "-ar", "44100",
+          "-ac", "2",
+          tempMp3File.getAbsolutePath()
+      );
+
+      runProcess(pb);
+
+      return Files.readAllBytes(tempMp3File.toPath());
+
+    } catch (final Exception e) {
+      log.error("Error during WAV to MP3 conversion", e);
+      throw new RuntimeException("Failed to convert audio", e);
+    } finally {
+      cleanUpFile(tempWavFile);
+      cleanUpFile(tempMp3File);
+    }
+  }
+
+  public byte[] concatenateWavs(final List<byte[]> wavChunks) {
+    if (wavChunks == null || wavChunks.isEmpty()) {
+      return null;
+    }
+    if (wavChunks.size() == 1) {
+      return wavChunks.get(0);
+    }
+
+    final List<File> tempWavFiles = new java.util.ArrayList<>();
+    File listFile = null;
+    File tempOutputFile = null;
+
+    try {
+      listFile = File.createTempFile("concat_list", ".txt");
+      tempOutputFile = File.createTempFile("concat_output", ".wav");
+
+      final StringBuilder sb = new StringBuilder();
+      for (int i = 0; i < wavChunks.size(); i++) {
+        final File tempWav = File.createTempFile("concat_chunk_" + i + "_", ".wav");
+        tempWavFiles.add(tempWav);
+        try (final FileOutputStream fos = new FileOutputStream(tempWav)) {
+          fos.write(wavChunks.get(i));
+        }
+        sb.append("file '").append(tempWav.getAbsolutePath().replace("'", "'\\''")).append("'\n");
+      }
+
+      Files.writeString(listFile.toPath(), sb.toString());
+
+      final ProcessBuilder pb = new ProcessBuilder(
+          ffmpegLocator.getExecutablePath(),
+          "-y",
+          "-f", "concat",
+          "-safe", "0",
+          "-i", listFile.getAbsolutePath(),
+          "-c", "copy",
+          tempOutputFile.getAbsolutePath()
+      );
+
+      runProcess(pb);
+
+      return Files.readAllBytes(tempOutputFile.toPath());
+
+    } catch (final Exception e) {
+      log.error("Error during WAV concatenation", e);
+      throw new RuntimeException("Failed to concatenate audio", e);
+    } finally {
+      if (listFile != null && listFile.exists()) {
+        listFile.delete();
+      }
+      for (final File tempWav : tempWavFiles) {
+        cleanUpFile(tempWav);
+      }
+      cleanUpFile(tempOutputFile);
+    }
+  }
+
+  public byte[] concatenatePcmAndConvertToWav(final List<byte[]> pcmChunks, final int sampleRate, final int channels) {
+    if (pcmChunks == null || pcmChunks.isEmpty()) {
+      return null;
+    }
+    
+    File tempPcmFile = null;
+    File tempOutputFile = null;
+
+    try {
+      tempPcmFile = File.createTempFile("concat_output", ".pcm");
+      tempOutputFile = File.createTempFile("concat_output", ".wav");
+
+      try (final FileOutputStream fos = new FileOutputStream(tempPcmFile)) {
+        for (final byte[] chunk : pcmChunks) {
+          fos.write(chunk);
+        }
+      }
+
+      final ProcessBuilder pb = new ProcessBuilder(
+          ffmpegLocator.getExecutablePath(),
+          "-y",
+          "-f", "s16le",
+          "-ar", String.valueOf(sampleRate),
+          "-ac", String.valueOf(channels),
+          "-i", tempPcmFile.getAbsolutePath(),
+          tempOutputFile.getAbsolutePath()
+      );
+
+      runProcess(pb);
+
+      return Files.readAllBytes(tempOutputFile.toPath());
+
+    } catch (final Exception e) {
+      log.error("Error during PCM concatenation and WAV conversion", e);
+      throw new RuntimeException("Failed to concatenate audio", e);
+    } finally {
+      cleanUpFile(tempPcmFile);
+      cleanUpFile(tempOutputFile);
+    }
+  }
+
+  public byte[] concatenatePcmAndConvertToMp3(final List<byte[]> pcmChunks, final int sampleRate, final int channels) {
+    if (pcmChunks == null || pcmChunks.isEmpty()) {
+      return null;
+    }
+    
+    File tempPcmFile = null;
+    File tempOutputFile = null;
+
+    try {
+      tempPcmFile = File.createTempFile("concat_output", ".pcm");
+      tempOutputFile = File.createTempFile("concat_output", ".mp3");
+
+      try (final FileOutputStream fos = new FileOutputStream(tempPcmFile)) {
+        for (final byte[] chunk : pcmChunks) {
+          fos.write(chunk);
+        }
+      }
+
+      final ProcessBuilder pb = new ProcessBuilder(
+          ffmpegLocator.getExecutablePath(),
+          "-y",
+          "-f", "s16le",
+          "-ar", String.valueOf(sampleRate),
+          "-ac", String.valueOf(channels),
+          "-i", tempPcmFile.getAbsolutePath(),
+          "-acodec", "libmp3lame",
+          "-q:a", "2",
+          tempOutputFile.getAbsolutePath()
+      );
+
+      runProcess(pb);
+
+      return Files.readAllBytes(tempOutputFile.toPath());
+
+    } catch (final Exception e) {
+      log.error("Error during PCM concatenation and MP3 conversion", e);
+      throw new RuntimeException("Failed to concatenate audio to MP3", e);
+    } finally {
+      cleanUpFile(tempPcmFile);
+      cleanUpFile(tempOutputFile);
+    }
+  }
 
   public byte[] extractAudioFromVideo(final byte[] videoBytes) {
     if (videoBytes == null || videoBytes.length == 0) {
