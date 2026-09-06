@@ -62,7 +62,7 @@ public class BotUtilsTest {
         when(mockUser.getFirstName()).thenReturn("John");
         when(mockUser.getLastName()).thenReturn("Doe");
 
-        assertEquals("John Doe", BotUtils.getSenderName(mockUser));
+        assertEquals("John Doe", BotUtils.getSenderPersonName(mockUser));
     }
 
     @Test
@@ -72,7 +72,7 @@ public class BotUtilsTest {
         when(mockUser.getFirstName()).thenReturn("John");
         when(mockUser.getLastName()).thenReturn(null);
 
-        assertEquals("John", BotUtils.getSenderName(mockUser));
+        assertEquals("John", BotUtils.getSenderPersonName(mockUser));
     }
 
     @Test

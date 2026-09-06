@@ -51,6 +51,6 @@ ai:
   default-model: ${AI_DEFAULT_MODEL}
   system-prompt: ${AI_SYSTEM_PROMPT}
 
-transcription-model: ${TRANSCRIPTION_MODEL}
+transcription-model: ${TRANSCRIPTION_MODEL:gemini-3.5-transcribe}
 tts-model: ${TTS_MODEL:gemini-3.1-flash-tts-preview}
 tts-voice: ${TTS_VOICE:Puck}
