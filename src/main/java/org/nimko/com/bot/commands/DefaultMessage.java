@@ -7,14 +7,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
 import org.apache.commons.lang3.StringUtils;
 import org.nimko.com.ai.AiChatService;
-import org.nimko.com.bot.FamilyTelegramBot.ReplyData;
+import org.nimko.com.bot.dto.ReplyData;
 import org.nimko.com.config.TelegramBotProperties;
 import org.nimko.com.repository.ChatContextRepository;
 import org.nimko.com.util.BotUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-import org.telegram.telegrambots.meta.api.objects.message.Message;
+import org.nimko.com.bot.messenger.IncomingMessage;
 
 @Service
 public class DefaultMessage implements CommandProcess{
@@ -44,7 +44,7 @@ public class DefaultMessage implements CommandProcess{
 
   @Override
   public ReplyData execute(final String normalizedText,final boolean hasPhoto,
-      final byte[] imageBytes,final Message message,final Long chatId, final boolean hasVoice,
+      final byte[] imageBytes,final IncomingMessage message,final Long chatId, final boolean hasVoice,
       final byte[] rawAudioBytes, final byte[] extractedAudioFromVideoBytes,
       final boolean groupChat,final int messageId) {
 
@@ -54,8 +54,8 @@ public class DefaultMessage implements CommandProcess{
         : normalizedText;
 
     if ((groupChat || chatId != newsChatId) && StringUtils.isNotBlank(normalizedText)) {
-      final String authorUsername = BotUtils.getSenderName(message.getFrom());
-      addTranscribedInContext(authorUsername, BotUtils.getSenderPersonName(message.getFrom()),
+      final String authorUsername = message.getFrom().getUsername();
+      addTranscribedInContext(authorUsername, message.getFrom().getPersonName(),
           BotUtils.stripTextPrefix(normalizedText), chatId, messageId, chatContextRepository, groupChat);
     }
 

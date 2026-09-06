@@ -1,10 +1,10 @@
 package org.nimko.com.bot.commands;
 
-import org.nimko.com.bot.FamilyTelegramBot.ReplyData;
+import org.nimko.com.bot.dto.ReplyData;
 import org.nimko.com.services.I18nService;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Service;
-import org.telegram.telegrambots.meta.api.objects.message.Message;
+import org.nimko.com.bot.messenger.IncomingMessage;
 
 @Service
 @Order(1)
@@ -23,7 +23,7 @@ public class StartCommand implements CommandProcess {
 
   @Override
   public ReplyData execute(final String normalizedText, final boolean hasPhoto, final byte[] imageBytes,
-      final Message message, final Long chatId, final boolean hasVoice, final byte[] rawAudioBytes,
+      final IncomingMessage message, final Long chatId, final boolean hasVoice, final byte[] rawAudioBytes,
       final byte[] extractedAudioFromVideoBytes, final boolean groupChat, final int messageId) {
     return new ReplyData(i18nService.getTranslate("bot.start"), false);
   }

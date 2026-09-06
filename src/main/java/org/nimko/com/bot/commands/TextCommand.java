@@ -1,22 +1,21 @@
 package org.nimko.com.bot.commands;
 
-import static org.nimko.com.util.BotUtils.hasAudioVideo;
 import static org.nimko.com.util.TranscribedUtils.getTranscribed;
 
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.nimko.com.ai.AiChatService;
 import org.nimko.com.bot.BotSenderService;
-import org.nimko.com.bot.FamilyTelegramBot.ReplyData;
+import org.nimko.com.bot.dto.ReplyData;
+import org.nimko.com.bot.messenger.MediaFileService;
 import org.nimko.com.repository.ChatContextRepository;
 import org.nimko.com.services.AudioConverter;
-import org.nimko.com.services.TelegramFileService;
 import org.nimko.com.services.I18nService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Service;
-import org.telegram.telegrambots.meta.api.objects.message.Message;
+import org.nimko.com.bot.messenger.IncomingMessage;
 
 @Service
 @Order(1)
@@ -29,7 +28,7 @@ public class TextCommand implements CommandProcess {
   private final AudioConverter audioConverter;
   private final BotSenderService botSenderService;
   private final I18nService i18nService;
-  private final TelegramFileService telegramFileService;
+  private final MediaFileService telegramFileService;
   private final ChatContextRepository chatContextRepository;
 
   @Override
@@ -40,13 +39,13 @@ public class TextCommand implements CommandProcess {
   @Override
   public ReplyData execute(final String normalizedText, final boolean hasPhoto,
       final byte[] imageBytes,
-      final Message message, final Long chatId, final boolean hasVoice, final byte[] rawAudioBytes,
+      final IncomingMessage message, final Long chatId, final boolean hasVoice, final byte[] rawAudioBytes,
       final byte[] extractedAudioFromVideoBytes, final boolean groupChat, final int messageId) {
-    Message targetMessage = message;
+    IncomingMessage targetMessage = message;
     byte[] audioToUse = null;
     boolean isVoice = hasVoice;
 
-    if (hasAudioVideo(message)) {
+    if (message.hasAudioVideo()) {
       if (message.hasVideoNote() || message.hasVideo()) {
         audioToUse = extractedAudioFromVideoBytes;
       } else if (message.hasVoice() || message.hasAudio()) {
@@ -54,8 +53,8 @@ public class TextCommand implements CommandProcess {
         isVoice = message.hasVoice();
       }
     } else if (message.getReplyToMessage() != null) {
-      final Message replyTo = message.getReplyToMessage();
-      if (hasAudioVideo(replyTo) || (replyTo.hasDocument() && telegramFileService.isMediaDocument(
+      final IncomingMessage replyTo = message.getReplyToMessage();
+      if (replyTo.hasAudioVideo() || (replyTo.hasDocument() && telegramFileService.isMediaDocument(
           replyTo))) {
         targetMessage = replyTo;
         final var replyContextOp = chatContextRepository.findByChatIdAndMessageId(chatId,

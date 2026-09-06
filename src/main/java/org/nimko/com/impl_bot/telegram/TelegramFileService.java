@@ -1,10 +1,13 @@
-package org.nimko.com.services;
+package org.nimko.com.impl_bot.telegram;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.net.URI;
 import org.apache.commons.lang3.StringUtils;
+import org.nimko.com.bot.messenger.IncomingMessage;
+import org.nimko.com.bot.messenger.MediaFileService;
+import org.nimko.com.impl_bot.telegram.messanger.TelegramIncomingMessage;
 import org.nimko.com.config.TelegramBotProperties;
-import org.nimko.com.util.BotUtils;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -12,7 +15,7 @@ import org.springframework.web.client.RestClient;
 import org.telegram.telegrambots.meta.api.objects.message.Message;
 
 @Service
-public class TelegramFileService {
+public class TelegramFileService implements MediaFileService {
 
   private static final Logger log = LoggerFactory.getLogger(TelegramFileService.class);
 
@@ -54,7 +57,7 @@ public class TelegramFileService {
         return null;
       }
 
-      final String fileUrl = BotUtils.buildTelegramFileUrl(telegramApiBaseUrl, botToken,
+      final String fileUrl = TelegramBotUtils.buildTelegramFileUrl(telegramApiBaseUrl, botToken,
           response.result().filePath());
       return telegramClient.get()
           .uri(URI.create(fileUrl))
@@ -100,7 +103,7 @@ public class TelegramFileService {
         return null;
       }
 
-      final String fileUrl = BotUtils.buildTelegramFileUrl(telegramApiBaseUrl, botToken,
+      final String fileUrl = TelegramBotUtils.buildTelegramFileUrl(telegramApiBaseUrl, botToken,
           response.result().filePath());
       return telegramClient.get()
           .uri(URI.create(fileUrl))
@@ -118,6 +121,28 @@ public class TelegramFileService {
     }
     final String mimeType = message.getDocument().getMimeType();
     return mimeType != null && (mimeType.startsWith("audio/") || mimeType.startsWith("video/"));
+  }
+
+  @Override
+  public byte[] downloadBestPhoto(final IncomingMessage message) {
+    return downloadBestPhoto(unwrap(message));
+  }
+
+  @Override
+  public byte[] downloadAudioMessage(final IncomingMessage message) {
+    return downloadAudioMessage(unwrap(message));
+  }
+
+  @Override
+  public boolean isMediaDocument(final IncomingMessage message) {
+    return isMediaDocument(unwrap(message));
+  }
+
+  private static Message unwrap(final IncomingMessage message) {
+    if (message instanceof final TelegramIncomingMessage telegramMessage) {
+      return telegramMessage.raw();
+    }
+    throw new IllegalArgumentException("Unsupported message type: " + message.getClass());
   }
 
   private record TelegramFileResponse(boolean ok, TelegramFile result) {}

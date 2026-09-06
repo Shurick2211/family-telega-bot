@@ -3,16 +3,15 @@ package org.nimko.com.bot.commands;
 import org.apache.commons.lang3.StringUtils;
 import org.nimko.com.ai.AiChatServiceAudioBook;
 import org.nimko.com.bot.BotSenderService;
-import org.nimko.com.bot.FamilyTelegramBot.ReplyData;
-import org.nimko.com.services.AudioConverter;
+import org.nimko.com.bot.dto.ReplyData;
+import org.nimko.com.bot.messenger.MediaFileService;
 import org.nimko.com.services.BookTextExtractorService;
 import org.nimko.com.services.I18nService;
-import org.nimko.com.services.TelegramFileService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Service;
-import org.telegram.telegrambots.meta.api.objects.message.Message;
+import org.nimko.com.bot.messenger.IncomingMessage;
 
 @Service
 @Order(1)
@@ -22,13 +21,13 @@ public class BookCommand implements CommandProcess {
 
   private final AiChatServiceAudioBook aiChatServiceAudioBook;
   private final BookTextExtractorService bookTextExtractorService;
-  private final TelegramFileService telegramFileService;
+  private final MediaFileService telegramFileService;
   private final BotSenderService botSenderService;
   private final I18nService i18nService;
 
   public BookCommand(final AiChatServiceAudioBook aiChatServiceAudioBook,
       final BookTextExtractorService bookTextExtractorService,
-      final TelegramFileService telegramFileService,
+      final MediaFileService telegramFileService,
       final BotSenderService botSenderService,
       final I18nService i18nService) {
     this.aiChatServiceAudioBook = aiChatServiceAudioBook;
@@ -45,15 +44,15 @@ public class BookCommand implements CommandProcess {
 
   @Override
   public ReplyData execute(final String normalizedText, final boolean hasPhoto, final byte[] imageBytes,
-      final Message message, final Long chatId, final boolean hasVoice, final byte[] rawAudioBytes,
+      final IncomingMessage message, final Long chatId, final boolean hasVoice, final byte[] rawAudioBytes,
       final byte[] extractedAudioFromVideoBytes, final boolean groupChat, final int messageId) {
-    final Message documentMessage = resolveDocumentMessage(message);
+    final IncomingMessage documentMessage = resolveDocumentMessage(message);
     if (documentMessage == null) {
       botSenderService.sendTextReply(chatId, i18nService.getTranslate("bot.book.usage"));
       return null;
     }
 
-    final String filename = documentMessage.getDocument().getFileName();
+    final String filename = documentMessage.getDocumentFileName();
     if (!bookTextExtractorService.isSupported(filename)) {
       botSenderService.sendTextReply(chatId, i18nService.getTranslate("bot.book.unsupported"));
       return null;
@@ -96,11 +95,11 @@ public class BookCommand implements CommandProcess {
     return null;
   }
 
-  private Message resolveDocumentMessage(final Message message) {
+  private IncomingMessage resolveDocumentMessage(final IncomingMessage message) {
     if (message.hasDocument()) {
       return message;
     }
-    final Message replyTo = message.getReplyToMessage();
+    final IncomingMessage replyTo = message.getReplyToMessage();
     if (replyTo != null && replyTo.hasDocument()) {
       return replyTo;
     }
