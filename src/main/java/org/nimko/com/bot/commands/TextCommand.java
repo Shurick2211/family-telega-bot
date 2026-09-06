@@ -28,7 +28,7 @@ public class TextCommand implements CommandProcess {
   private final AudioConverter audioConverter;
   private final BotSenderService botSenderService;
   private final I18nService i18nService;
-  private final MediaFileService telegramFileService;
+  private final MediaFileService mediaFileService;
   private final ChatContextRepository chatContextRepository;
 
   @Override
@@ -54,7 +54,7 @@ public class TextCommand implements CommandProcess {
       }
     } else if (message.getReplyToMessage() != null) {
       final IncomingMessage replyTo = message.getReplyToMessage();
-      if (replyTo.hasAudioVideo() || (replyTo.hasDocument() && telegramFileService.isMediaDocument(
+      if (replyTo.hasAudioVideo() || (replyTo.hasDocument() && mediaFileService.isMediaDocument(
           replyTo))) {
         targetMessage = replyTo;
         final var replyContextOp = chatContextRepository.findByChatIdAndMessageId(chatId,
@@ -70,18 +70,18 @@ public class TextCommand implements CommandProcess {
 
       final byte[] replyAudioBytes;
       if (replyTo.hasVoice() || replyTo.hasAudio() || (replyTo.hasDocument()
-          && telegramFileService.isMediaDocument(replyTo))) {
-        replyAudioBytes = telegramFileService.downloadAudioMessage(replyTo);
+          && mediaFileService.isMediaDocument(replyTo))) {
+        replyAudioBytes = mediaFileService.downloadAudioMessage(replyTo);
         isVoice = replyTo.hasVoice();
       } else {
-        replyAudioBytes = telegramFileService.downloadAudioMessage(replyTo);
+        replyAudioBytes = mediaFileService.downloadAudioMessage(replyTo);
       }
 
       if (replyAudioBytes != null && replyAudioBytes.length > 0) {
         if (replyTo.hasVoice()) {
           audioToUse = audioConverter.convertOggToMp3(replyAudioBytes);
         } else if (replyTo.hasVideoNote() || replyTo.hasVideo() || (replyTo.hasDocument()
-            && telegramFileService.isMediaDocument(replyTo))) {
+            && mediaFileService.isMediaDocument(replyTo))) {
           audioToUse = audioConverter.extractAudioFromVideo(replyAudioBytes);
         } else {
           audioToUse = replyAudioBytes;

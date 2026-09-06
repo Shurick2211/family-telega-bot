@@ -21,18 +21,18 @@ public class BookCommand implements CommandProcess {
 
   private final AiChatServiceAudioBook aiChatServiceAudioBook;
   private final BookTextExtractorService bookTextExtractorService;
-  private final MediaFileService telegramFileService;
+  private final MediaFileService mediaFileService;
   private final BotSenderService botSenderService;
   private final I18nService i18nService;
 
   public BookCommand(final AiChatServiceAudioBook aiChatServiceAudioBook,
       final BookTextExtractorService bookTextExtractorService,
-      final MediaFileService telegramFileService,
+      final MediaFileService mediaFileService,
       final BotSenderService botSenderService,
       final I18nService i18nService) {
     this.aiChatServiceAudioBook = aiChatServiceAudioBook;
     this.bookTextExtractorService = bookTextExtractorService;
-    this.telegramFileService = telegramFileService;
+    this.mediaFileService = mediaFileService;
     this.botSenderService = botSenderService;
     this.i18nService = i18nService;
   }
@@ -60,7 +60,7 @@ public class BookCommand implements CommandProcess {
 
     java.util.concurrent.CompletableFuture.runAsync(() -> {
       try {
-        final byte[] fileBytes = telegramFileService.downloadAudioMessage(documentMessage);
+        final byte[] fileBytes = mediaFileService.downloadAudioMessage(documentMessage);
         if (fileBytes == null || fileBytes.length == 0) {
           botSenderService.sendTextReply(chatId, i18nService.getTranslate("bot.book.download.error"));
           return;

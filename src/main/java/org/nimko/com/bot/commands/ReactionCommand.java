@@ -3,8 +3,8 @@ package org.nimko.com.bot.commands;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.nimko.com.bot.BotProperties;
 import org.nimko.com.bot.dto.ReplyData;
-import org.nimko.com.config.TelegramBotProperties;
 import org.nimko.com.repository.ChatContextRepository;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Service;
@@ -20,7 +20,7 @@ import static org.nimko.com.util.BotUtils.addTranscribedInContext;
 public class ReactionCommand implements CommandProcess {
 
   private final ChatContextRepository chatContextRepository;
-  private final TelegramBotProperties telegramProperties;
+  private final BotProperties botProperties;
 
   @Override
   public boolean isCommand(final String command) {
@@ -45,7 +45,7 @@ public class ReactionCommand implements CommandProcess {
       return;
     }
 
-    if (chatId.equals(telegramProperties.newsChatId())) {
+    if (chatId.equals(botProperties.newsChatId())) {
       return;
     }
 

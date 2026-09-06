@@ -17,7 +17,7 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 @Slf4j
-@EnableConfigurationProperties({TelegramBotProperties.class, AiChatProperties.class})
+@EnableConfigurationProperties({AiChatProperties.class})
 public class AppConfig {
 
   @Bean

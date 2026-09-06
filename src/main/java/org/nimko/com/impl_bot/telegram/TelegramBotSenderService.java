@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.nimko.com.bot.BotSenderService;
-import org.nimko.com.config.TelegramBotProperties;
 import org.nimko.com.impl_bot.telegram.TelegramBotUtils.ReplyPayload;
 import org.nimko.com.services.I18nService;
 import org.springframework.core.io.ByteArrayResource;

@@ -4,8 +4,8 @@ import static org.nimko.com.repository.ChatContextRepository.getTodayContext;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import org.nimko.com.bot.BotProperties;
 import org.nimko.com.bot.dto.ReplyData;
-import org.nimko.com.config.TelegramBotProperties;
 import org.nimko.com.repository.ChatContextRepository;
 import org.nimko.com.services.I18nService;
 import org.springframework.core.annotation.Order;
@@ -20,7 +20,7 @@ public class ContextCommand implements CommandProcess {
   private final I18nService i18nService;
   private final ChatContextRepository chatContextRepository;
   private final ObjectMapper objectMapper;
-  private final TelegramBotProperties properties;
+  private final BotProperties properties;
 
   @Override
   public boolean isCommand(final String command) {

@@ -6,7 +6,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.nimko.com.bot.messenger.IncomingMessage;
 import org.nimko.com.bot.messenger.MediaFileService;
 import org.nimko.com.impl_bot.telegram.messanger.TelegramIncomingMessage;
-import org.nimko.com.config.TelegramBotProperties;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

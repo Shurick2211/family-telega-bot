@@ -20,16 +20,16 @@ public class AudioCommand implements CommandProcess {
   private final AudioConverter audioConverter;
   private final BotSenderService botSenderService;
   private final I18nService i18nService;
-  private final MediaFileService telegramFileService;
+  private final MediaFileService mediaFileService;
 
   public AudioCommand(final AudioConverter audioConverter,
       final BotSenderService botSenderService,
       final I18nService i18nService,
-      final MediaFileService telegramFileService) {
+      final MediaFileService mediaFileService) {
     this.audioConverter = audioConverter;
     this.botSenderService = botSenderService;
     this.i18nService = i18nService;
-    this.telegramFileService = telegramFileService;
+    this.mediaFileService = mediaFileService;
   }
 
   @Override
@@ -47,9 +47,9 @@ public class AudioCommand implements CommandProcess {
       audioToSend = extractedAudioFromVideoBytes;
     }
     else if (message.getReplyToMessage() != null && (message.getReplyToMessage().hasVideoNote() || message.getReplyToMessage().hasVideo() || 
-             (message.getReplyToMessage().hasDocument() && telegramFileService.isMediaDocument(message.getReplyToMessage())))) {
+             (message.getReplyToMessage().hasDocument() && mediaFileService.isMediaDocument(message.getReplyToMessage())))) {
       final IncomingMessage replyTo = message.getReplyToMessage();
-      final byte[] replyVideoBytes = telegramFileService.downloadAudioMessage(replyTo);
+      final byte[] replyVideoBytes = mediaFileService.downloadAudioMessage(replyTo);
       if (replyVideoBytes != null && replyVideoBytes.length > 0) {
         audioToSend = audioConverter.extractAudioFromVideo(replyVideoBytes);
       }

@@ -7,8 +7,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
 import org.apache.commons.lang3.StringUtils;
 import org.nimko.com.ai.AiChatService;
+import org.nimko.com.bot.BotProperties;
 import org.nimko.com.bot.dto.ReplyData;
-import org.nimko.com.config.TelegramBotProperties;
 import org.nimko.com.repository.ChatContextRepository;
 import org.nimko.com.util.BotUtils;
 import org.slf4j.Logger;
@@ -28,7 +28,7 @@ public class DefaultMessage implements CommandProcess{
   private static final Logger log = LoggerFactory.getLogger(DefaultMessage.class);
 
   public DefaultMessage(final AiChatService aiChatService,
-      final TelegramBotProperties telegramProperties, final ChatContextRepository chatContextRepository,
+      final BotProperties telegramProperties, final ChatContextRepository chatContextRepository,
       final ObjectMapper objectMapper) {
     this.aiChatService = aiChatService;
     this.botUsername = telegramProperties.username();

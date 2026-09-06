@@ -7,18 +7,19 @@ import org.nimko.com.ai.AiChatService;
 import org.nimko.com.bot.BotSenderService;
 import org.nimko.com.bot.commands.CommandProcess;
 import org.nimko.com.config.AiChatProperties;
-import org.nimko.com.config.TelegramBotProperties;
 import org.nimko.com.repository.ChatContextRepository;
 import org.nimko.com.services.AudioConverter;
 import org.nimko.com.services.I18nService;
 import org.nimko.com.services.MediaDownloadService;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.telegram.telegrambots.longpolling.TelegramBotsLongPollingApplication;
 
 @Configuration
 @Slf4j
+@EnableConfigurationProperties({TelegramBotProperties.class})
 public class TelegramBotConfig {
 
   @Bean(destroyMethod = "close")
