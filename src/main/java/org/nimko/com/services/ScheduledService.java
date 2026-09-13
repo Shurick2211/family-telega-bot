@@ -15,8 +15,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.nimko.com.ai.AiChatService;
+import org.nimko.com.bot.BotProperties;
 import org.nimko.com.bot.BotSenderService;
-import org.nimko.com.config.TelegramBotProperties;
 import org.nimko.com.entity.DaylySummaryChatEntity;
 import org.nimko.com.repository.ChatContextRepository;
 import org.nimko.com.repository.DailySummaryChatRepository;
@@ -45,7 +45,7 @@ public class ScheduledService {
   private final ObjectMapper objectMapper;
   private final AiChatService aiChatService;
   private final BotSenderService botSenderService;
-  private final TelegramBotProperties telegramBotProperties;
+  private final BotProperties botProperties;
   private final ZoneId appZoneId;
   private final TermuxService termuxService;
 
@@ -63,7 +63,7 @@ public class ScheduledService {
       log.info("Low battery detected: {}%, alerting", batteryInfo.percentage());
       termuxService.blinkFlashlight(LOW_BATTERY_FLASHLIGHT_BLINKS, LOW_BATTERY_FLASHLIGHT_INTERVAL_MS);
       termuxService.speak(CHARGE_ME_MESSAGE);
-      botSenderService.sendTextReply(telegramBotProperties.newsChatId(), CHARGE_ME_MESSAGE);
+      botSenderService.sendTextReply(botProperties.newsChatId(), CHARGE_ME_MESSAGE);
     }
   }
 
@@ -96,7 +96,7 @@ public class ScheduledService {
         continue;
       }
 
-      final String prompt = BotUtils.stripBotPrefix(DAILY_SUMMARY_PROMPT, telegramBotProperties.username(), context,
+      final String prompt = BotUtils.stripBotPrefix(DAILY_SUMMARY_PROMPT, botProperties.username(), context,
           true);
       final String summary;
       try {
@@ -141,7 +141,7 @@ public class ScheduledService {
         continue;
       }
 
-      final String prompt = BotUtils.stripBotPrefix(MONTHLY_SUMMARY_PROMPT, telegramBotProperties.username(), context,
+      final String prompt = BotUtils.stripBotPrefix(MONTHLY_SUMMARY_PROMPT, botProperties.username(), context,
           true);
       final String summary = aiChatService.ask(prompt);
       if (StringUtils.isNotBlank(summary)) {

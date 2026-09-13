@@ -153,7 +153,7 @@ public class AiChatService {
   private String defaultSystemPrompt() {
     return StringUtils.isNotBlank(properties.systemPrompt())
         ? properties.systemPrompt()
-        : "You are a concise assistant inside a Telegram bot.";
+        : "You are a concise assistant inside a bot.";
   }
 
   private String askInternal(final String prompt, final byte[] imageBytes, final String mimeType,

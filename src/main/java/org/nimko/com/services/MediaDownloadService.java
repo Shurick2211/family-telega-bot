@@ -15,7 +15,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Service that downloads media from an external downloader service (http://localhost:9001/download)
- * in a separate thread and notifies a callback (FileSender) to deliver the result into Telegram.
+ * in a separate thread and notifies a callback (FileSender) to deliver the result into the bot.
  */
 public class MediaDownloadService {
   private static final Logger log = LoggerFactory.getLogger(MediaDownloadService.class);

@@ -1,15 +1,15 @@
 package org.nimko.com.bot.commands;
 
 import org.nimko.com.bot.BotSenderService;
-import org.nimko.com.bot.FamilyTelegramBot.ReplyData;
+import org.nimko.com.bot.dto.ReplyData;
+import org.nimko.com.bot.messenger.MediaFileService;
 import org.nimko.com.services.AudioConverter;
-import org.nimko.com.services.TelegramFileService;
 import org.nimko.com.services.I18nService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Service;
-import org.telegram.telegrambots.meta.api.objects.message.Message;
+import org.nimko.com.bot.messenger.IncomingMessage;
 
 @Service
 @Order(1)
@@ -20,16 +20,16 @@ public class AudioCommand implements CommandProcess {
   private final AudioConverter audioConverter;
   private final BotSenderService botSenderService;
   private final I18nService i18nService;
-  private final TelegramFileService telegramFileService;
+  private final MediaFileService mediaFileService;
 
   public AudioCommand(final AudioConverter audioConverter,
       final BotSenderService botSenderService,
       final I18nService i18nService,
-      final TelegramFileService telegramFileService) {
+      final MediaFileService mediaFileService) {
     this.audioConverter = audioConverter;
     this.botSenderService = botSenderService;
     this.i18nService = i18nService;
-    this.telegramFileService = telegramFileService;
+    this.mediaFileService = mediaFileService;
   }
 
   @Override
@@ -39,7 +39,7 @@ public class AudioCommand implements CommandProcess {
 
   @Override
   public ReplyData execute(final String normalizedText, final boolean hasPhoto, final byte[] imageBytes,
-      final Message message, final Long chatId, final boolean hasVoice, final byte[] rawAudioBytes,
+      final IncomingMessage message, final Long chatId, final boolean hasVoice, final byte[] rawAudioBytes,
       final byte[] extractedAudioFromVideoBytes, final boolean groupChat, final int messageId) {
     byte[] audioToSend = null;
 
@@ -47,9 +47,9 @@ public class AudioCommand implements CommandProcess {
       audioToSend = extractedAudioFromVideoBytes;
     }
     else if (message.getReplyToMessage() != null && (message.getReplyToMessage().hasVideoNote() || message.getReplyToMessage().hasVideo() || 
-             (message.getReplyToMessage().hasDocument() && telegramFileService.isMediaDocument(message.getReplyToMessage())))) {
-      final Message replyTo = message.getReplyToMessage();
-      final byte[] replyVideoBytes = telegramFileService.downloadAudioMessage(replyTo);
+             (message.getReplyToMessage().hasDocument() && mediaFileService.isMediaDocument(message.getReplyToMessage())))) {
+      final IncomingMessage replyTo = message.getReplyToMessage();
+      final byte[] replyVideoBytes = mediaFileService.downloadAudioMessage(replyTo);
       if (replyVideoBytes != null && replyVideoBytes.length > 0) {
         audioToSend = audioConverter.extractAudioFromVideo(replyVideoBytes);
       }

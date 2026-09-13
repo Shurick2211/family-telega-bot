@@ -1,0 +1,360 @@
+package org.nimko.com.impl_bot.telegram;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
+import org.nimko.com.bot.BotSenderService;
+import org.nimko.com.impl_bot.telegram.TelegramBotUtils.ReplyPayload;
+import org.nimko.com.services.I18nService;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.MediaType;
+import org.springframework.stereotype.Service;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.RestClient;
+
+@Service
+@Slf4j
+public class TelegramBotSenderService implements BotSenderService {
+
+  public static final String COPY_IMG_CALLBACK_PREFIX = "copy_img:";
+  private static final String TELEGRAM_PARSE_MODE = "Markdown";
+
+  private final String botToken;
+  private final RestClient telegramClient;
+  private final I18nService i18nService;
+
+  public TelegramBotSenderService(
+      final TelegramBotProperties telegramProperties,
+      final I18nService i18nService) {
+    this.botToken = telegramProperties.token();
+    final String apiBaseUrl = StringUtils.isNotBlank(telegramProperties.apiBaseUrl())
+        ? telegramProperties.apiBaseUrl()
+        : "https://api.telegram.org";
+    this.telegramClient = RestClient.builder()
+        .baseUrl(apiBaseUrl)
+        .build();
+    this.i18nService = i18nService;
+  }
+
+  @Override
+  public void sendText(final Long chatId, final String text) {
+    sendTextReply(chatId, text);
+  }
+
+  @Override
+  public void sendFile(final Long chatId, final byte[] bytes, final String filename,
+      final String contentType) {
+    final LinkedMultiValueMap<String, Object> form = new LinkedMultiValueMap<>();
+    form.add("chat_id", chatId.toString());
+    form.add("parse_mode", TELEGRAM_PARSE_MODE);
+    form.add("caption", filename);
+    form.add("document", new ByteArrayResource(bytes) {
+      @Override
+      public String getFilename() {
+        return filename != null ? filename : "file.bin";
+      }
+
+      @Override
+      public long contentLength() {
+        return bytes.length;
+      }
+    });
+
+    try {
+      telegramClient.post()
+          .uri("/bot{token}/sendDocument", botToken)
+          .contentType(MediaType.MULTIPART_FORM_DATA)
+          .body(form)
+          .retrieve()
+          .toBodilessEntity();
+    } catch (final RuntimeException ex) {
+      log.error("Failed to send downloaded file to chat {}", chatId, ex);
+      sendTextReply(chatId, i18nService.getTranslate("bot.media.upload.failed", filename));
+    }
+  }
+
+  @Override
+  public void sendReply(final Long chatId, final String text, final byte[] photoBytes) {
+    sendReply(chatId, text, photoBytes, null);
+  }
+
+  @Override
+  public void sendReply(final Long chatId, final String text, final byte[] photoBytes,
+      final String replyMarkupJson) {
+    if (photoBytes != null && photoBytes.length > 0) {
+      final String caption = TelegramBotUtils.buildMarkdownCaption(text);
+      if (sendPhotoReply(chatId, photoBytes, caption, replyMarkupJson)) {
+        if (StringUtils.isBlank(caption) && StringUtils.isNotBlank(text)) {
+          sendTextReply(chatId, text);
+        }
+        return;
+      }
+    }
+    sendTextReply(chatId, text, replyMarkupJson);
+  }
+
+  @Override
+  public boolean sendTextReply(final Long chatId, final String text) {
+    return sendTextReply(chatId, text, null);
+  }
+
+  @Override
+  public boolean sendTextReply(final Long chatId, final String text,
+      final String replyMarkupJson) {
+    if (StringUtils.isBlank(text)) {
+      return false;
+    }
+
+    final SendResult result = sendMessageRequest(chatId, text, replyMarkupJson,
+        TELEGRAM_PARSE_MODE);
+    if (result == SendResult.BROKEN_ENTITIES) {
+      return sendMessageRequest(chatId, text, replyMarkupJson, null) == SendResult.SENT;
+    }
+    return result == SendResult.SENT;
+  }
+
+  private SendResult sendMessageRequest(final Long chatId, final String text,
+      final String replyMarkupJson, final String parseMode) {
+    final LinkedMultiValueMap<String, String> form = new LinkedMultiValueMap<>();
+    form.add("chat_id", chatId.toString());
+    form.add("text", text);
+    if (parseMode != null) {
+      form.add("parse_mode", parseMode);
+    }
+    if (StringUtils.isNotBlank(replyMarkupJson)) {
+      form.add("reply_markup", replyMarkupJson);
+    }
+
+    try {
+      telegramClient.post()
+          .uri("/bot{token}/sendMessage", botToken)
+          .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+          .body(form)
+          .retrieve()
+          .toBodilessEntity();
+      return SendResult.SENT;
+    } catch (final RuntimeException ex) {
+      if (parseMode != null && isEntityParseError(ex)) {
+        log.warn("Telegram rejected {} entities for chat {}, retrying as plain text: {}",
+            parseMode, chatId, ex.getMessage());
+        return SendResult.BROKEN_ENTITIES;
+      }
+      log.error("Failed to send Telegram response to chat {}", chatId, ex);
+      return SendResult.FAILED;
+    }
+  }
+
+  @Override
+  public Integer sendTextAndGetMessageId(final Long chatId, final String text) {
+    if (StringUtils.isBlank(text)) {
+      return null;
+    }
+    final LinkedMultiValueMap<String, String> form = new LinkedMultiValueMap<>();
+    form.add("chat_id", chatId.toString());
+    form.add("text", text);
+    try {
+      final JsonNode response = telegramClient.post()
+          .uri("/bot{token}/sendMessage", botToken)
+          .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+          .body(form)
+          .retrieve()
+          .body(JsonNode.class);
+      if (response != null && response.has("result")) {
+        return response.get("result").get("message_id").asInt();
+      }
+    } catch (final RuntimeException ex) {
+      log.error("Failed to send text and get message ID to chat {}", chatId, ex);
+    }
+    return null;
+  }
+
+  @Override
+  public void editMessageText(final Long chatId, final Integer messageId, final String text) {
+    if (messageId == null || StringUtils.isBlank(text)) {
+      return;
+    }
+    final LinkedMultiValueMap<String, String> form = new LinkedMultiValueMap<>();
+    form.add("chat_id", chatId.toString());
+    form.add("message_id", messageId.toString());
+    form.add("text", text);
+    try {
+      telegramClient.post()
+          .uri("/bot{token}/editMessageText", botToken)
+          .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+          .body(form)
+          .retrieve()
+          .toBodilessEntity();
+    } catch (final RuntimeException ex) {
+      log.error("Failed to edit message text for chat {} message {}", chatId, messageId, ex);
+    }
+  }
+
+  private static boolean isEntityParseError(final RuntimeException ex) {
+    return ex instanceof final HttpClientErrorException.BadRequest badRequest
+        && badRequest.getResponseBodyAsString().contains("can't parse entities");
+  }
+
+  private enum SendResult {
+    SENT, BROKEN_ENTITIES, FAILED
+  }
+
+  @Override
+  public boolean sendPhotoReply(final Long chatId, final byte[] photoBytes, final String caption,
+      final String replyMarkupJson) {
+    final SendResult result = sendPhotoRequest(chatId, photoBytes, caption, replyMarkupJson,
+        TELEGRAM_PARSE_MODE);
+    if (result == SendResult.BROKEN_ENTITIES) {
+      return sendPhotoRequest(chatId, photoBytes, caption, replyMarkupJson, null)
+          == SendResult.SENT;
+    }
+    return result == SendResult.SENT;
+  }
+
+  private SendResult sendPhotoRequest(final Long chatId, final byte[] photoBytes,
+      final String caption, final String replyMarkupJson, final String parseMode) {
+    final LinkedMultiValueMap<String, Object> form = new LinkedMultiValueMap<>();
+    form.add("chat_id", chatId.toString());
+    if (parseMode != null) {
+      form.add("parse_mode", parseMode);
+    }
+    if (StringUtils.isNotBlank(caption)) {
+      form.add("caption", caption);
+    }
+    if (StringUtils.isNotBlank(replyMarkupJson)) {
+      form.add("reply_markup", replyMarkupJson);
+    }
+    form.add("photo", new ByteArrayResource(photoBytes) {
+      @Override
+      public String getFilename() {
+        return "image.jpg";
+      }
+    });
+
+    try {
+      telegramClient.post()
+          .uri("/bot{token}/sendPhoto", botToken)
+          .contentType(MediaType.MULTIPART_FORM_DATA)
+          .body(form)
+          .retrieve()
+          .toBodilessEntity();
+      return SendResult.SENT;
+    } catch (final RuntimeException ex) {
+      if (parseMode != null && isEntityParseError(ex)) {
+        log.warn("Telegram rejected {} caption entities for chat {}, retrying as plain text: {}",
+            parseMode, chatId, ex.getMessage());
+        return SendResult.BROKEN_ENTITIES;
+      }
+      log.error("Failed to send Telegram photo response to chat {}", chatId, ex);
+      return SendResult.FAILED;
+    }
+  }
+
+  @Override
+  public void sendNewsReply(final Long chatId, final String text, final byte[] photoBytes) {
+    if (StringUtils.isBlank(text)) {
+      return;
+    }
+
+    final String copyImageToken = photoBytes != null && photoBytes.length > 0
+        ? TelegramBotUtils.registerCopyImagePayload(text, photoBytes)
+        : null;
+    final String replyMarkupJson = TelegramBotUtils.buildNewsReplyMarkup(
+        photoBytes != null && photoBytes.length > 0,
+        copyImageToken,
+        COPY_IMG_CALLBACK_PREFIX);
+
+    sendReply(chatId, text, photoBytes, replyMarkupJson);
+  }
+
+  @Override
+  public void sendAudioFile(final Long chatId, final byte[] audioBytes, final String filename) {
+    final LinkedMultiValueMap<String, Object> form = new LinkedMultiValueMap<>();
+    form.add("chat_id", chatId.toString());
+    form.add("audio", new ByteArrayResource(audioBytes) {
+      @Override
+      public String getFilename() {
+        return filename;
+      }
+
+      @Override
+      public long contentLength() {
+        return audioBytes.length;
+      }
+    });
+
+    try {
+      telegramClient.post()
+          .uri("/bot{token}/sendAudio", botToken)
+          .contentType(MediaType.MULTIPART_FORM_DATA)
+          .body(form)
+          .retrieve()
+          .toBodilessEntity();
+      log.info("Audio file sent successfully to chat {}", chatId);
+    } catch (final RuntimeException ex) {
+      log.error("Failed to send audio file to chat {}", chatId, ex);
+      sendTextReply(chatId, i18nService.getTranslate("bot.audio.failed"));
+    }
+  }
+
+  @Override
+  public void sendDocument(final Long chatId, final byte[] bytes, final String filename) {
+    final LinkedMultiValueMap<String, Object> form = new LinkedMultiValueMap<>();
+    form.add("chat_id", chatId.toString());
+    form.add("document", new ByteArrayResource(bytes) {
+      @Override
+      public String getFilename() {
+        return filename;
+      }
+
+      @Override
+      public long contentLength() {
+        return bytes.length;
+      }
+    });
+
+    try {
+      telegramClient.post()
+          .uri("/bot{token}/sendDocument", botToken)
+          .contentType(MediaType.MULTIPART_FORM_DATA)
+          .body(form)
+          .retrieve()
+          .toBodilessEntity();
+      log.info("Document sent successfully to chat {}", chatId);
+    } catch (final RuntimeException ex) {
+      log.error("Failed to send document to chat {}", chatId, ex);
+      sendTextReply(chatId, "Failed to send generated document.");
+    }
+  }
+
+  @Override
+  public void answerCallbackQuery(final String callbackQueryId, final String text) {
+    if (StringUtils.isBlank(callbackQueryId)) {
+      return;
+    }
+
+    final LinkedMultiValueMap<String, String> form = new LinkedMultiValueMap<>();
+    form.add("callback_query_id", callbackQueryId);
+    if (StringUtils.isNotBlank(text)) {
+      form.add("text", text);
+    }
+
+    try {
+      telegramClient.post()
+          .uri("/bot{token}/answerCallbackQuery", botToken)
+          .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+          .body(form)
+          .retrieve()
+          .toBodilessEntity();
+    } catch (final RuntimeException ex) {
+      log.warn("Failed to answer Telegram callback query {}", callbackQueryId, ex);
+    }
+  }
+
+  public boolean sendCopiedImage(final Long chatId, final ReplyPayload payload) {
+    if (payload == null || payload.photoBytes() == null || payload.photoBytes().length == 0) {
+      return false;
+    }
+    return sendPhotoReply(chatId, payload.photoBytes(), null, null);
+  }
+}
