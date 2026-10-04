@@ -21,6 +21,9 @@ RUN ./gradlew build -x test --no-daemon
 FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
 
+# Install ffmpeg for audio and video processing
+RUN apk add --no-cache ffmpeg
+
 # Copy the built jar from the builder stage
 COPY --from=builder /app/build/libs/*-SNAPSHOT.jar app.jar
 
