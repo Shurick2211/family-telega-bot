@@ -20,6 +20,23 @@ import java.util.regex.Pattern;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.poi.hwpf.HWPFDocument;
 import org.apache.poi.hwpf.extractor.WordExtractor;
+import org.apache.poi.hslf.usermodel.HSLFGroupShape;
+import org.apache.poi.hslf.usermodel.HSLFShape;
+import org.apache.poi.hslf.usermodel.HSLFSlide;
+import org.apache.poi.hslf.usermodel.HSLFSlideShow;
+import org.apache.poi.hslf.usermodel.HSLFTextParagraph;
+import org.apache.poi.hslf.usermodel.HSLFTextShape;
+import org.apache.poi.xslf.usermodel.XMLSlideShow;
+import org.apache.poi.xslf.usermodel.XSLFGroupShape;
+import org.apache.poi.xslf.usermodel.XSLFNotes;
+import org.apache.poi.xslf.usermodel.XSLFShape;
+import org.apache.poi.xslf.usermodel.XSLFSlide;
+import org.apache.poi.xslf.usermodel.XSLFTable;
+import org.apache.poi.xslf.usermodel.XSLFTableCell;
+import org.apache.poi.xslf.usermodel.XSLFTableRow;
+import org.apache.poi.xslf.usermodel.XSLFTextParagraph;
+import org.apache.poi.xslf.usermodel.XSLFTextRun;
+import org.apache.poi.xslf.usermodel.XSLFTextShape;
 import org.apache.poi.xwpf.usermodel.IBody;
 import org.apache.poi.xwpf.usermodel.IBodyElement;
 import org.apache.poi.xwpf.usermodel.XWPFFooter;
@@ -32,18 +49,21 @@ import org.apache.poi.xwpf.usermodel.XWPFTableRow;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.nimko.com.ai.AiChatService;
 import org.nimko.com.util.BotUtils;
+import org.openxmlformats.schemas.drawingml.x2006.main.CTRegularTextRun;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTR;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 /**
- * Translates .doc/.docx books into another language with the AI provider and returns a .docx file.
+ * Translates documents (.doc, .docx, .pdf) and PowerPoint presentations (.ppt, .pptx) into another
+ * language with the AI provider.
  *
- * <p>For .docx the original document is reused as a template: only the text of the paragraphs is
- * replaced, so styles, headings, tables, headers and footers of the source book are preserved. The
- * legacy .doc format has no such template support, therefore its text is re-rendered into a new
- * .docx via {@link DocxGeneratorService}.
+ * <p>For .docx and .pptx the original file is reused as a template: only the text is replaced, so
+ * styles, headings, tables, slide layouts, images and animations of the source file are preserved
+ * and a presentation comes back as a presentation. The legacy .doc format and .pdf have no such
+ * template support, therefore their text is re-rendered into a new .docx via
+ * {@link DocxGeneratorService}.
  */
 @Service
 public class DocumentTranslationService {
@@ -57,6 +77,8 @@ public class DocumentTranslationService {
   /** Maximum amount of paragraphs sent to the AI provider within a single request. */
   private static final int MAX_SEGMENTS_PER_CHUNK = 40;
   private static final int PARALLEL_REQUESTS = 3;
+  /** A PDF line shorter than this share of the average line length ends a paragraph. */
+  private static final double PDF_SHORT_LINE_RATIO = 0.75d;
   private static final Pattern MARKER_PATTERN = Pattern.compile("\\[\\[(\\d+)]]");
   /**
    * The 30 most widely spoken languages by their ISO 639-1 codes plus the codes people often type
@@ -104,46 +126,67 @@ public class DocumentTranslationService {
 
   private final AiChatService aiChatService;
   private final DocxGeneratorService docxGeneratorService;
+  private final BookTextExtractorService bookTextExtractorService;
 
   public DocumentTranslationService(final AiChatService aiChatService,
-      final DocxGeneratorService docxGeneratorService) {
+      final DocxGeneratorService docxGeneratorService,
+      final BookTextExtractorService bookTextExtractorService) {
     this.aiChatService = aiChatService;
     this.docxGeneratorService = docxGeneratorService;
+    this.bookTextExtractorService = bookTextExtractorService;
   }
 
   public boolean isSupported(final String filename) {
     final String extension = resolveExtension(filename);
-    return "doc".equals(extension) || "docx".equals(extension);
+    return "doc".equals(extension) || "docx".equals(extension) || "pdf".equals(extension)
+        || "ppt".equals(extension) || "pptx".equals(extension);
   }
 
   /**
-   * Translates the given book and returns the result as a .docx file.
+   * Translates the given file. Presentations are returned in their own format, text documents
+   * always as a .docx.
    *
-   * @param fileBytes        source .doc/.docx file
+   * @param fileBytes        source .doc/.docx/.pdf/.ppt/.pptx file
    * @param filename         original file name, used to detect the format
    * @param languageCode     target language code or name typed after the dash in the command
    * @param progressCallback receives the translation progress in percent, may be {@code null}
-   * @return bytes of the translated .docx file or {@code null} when nothing could be translated
+   * @return the translated file or {@code null} when nothing could be translated
    */
-  public byte[] translateToDocx(final byte[] fileBytes, final String filename,
+  public TranslationResult translate(final byte[] fileBytes, final String filename,
       final String languageCode, final Consumer<Integer> progressCallback) {
     if (fileBytes == null || fileBytes.length == 0) {
       return null;
     }
 
     final String targetLanguage = resolveLanguageName(languageCode);
-    log.info("Translating document {} into {}", filename, targetLanguage);
+    final String extension = resolveExtension(filename);
+    log.info("Translating {} into {}", filename, targetLanguage);
 
     try {
-      return switch (resolveExtension(filename)) {
+      final byte[] content = switch (extension) {
         case "docx" -> translateDocx(fileBytes, targetLanguage, progressCallback);
         case "doc" -> translateLegacyDoc(fileBytes, targetLanguage, progressCallback);
+        case "pdf" -> translatePdf(fileBytes, filename, targetLanguage, progressCallback);
+        case "pptx" -> translatePptx(fileBytes, targetLanguage, progressCallback);
+        case "ppt" -> translateLegacyPpt(fileBytes, targetLanguage, progressCallback);
         default -> null;
       };
+      if (content == null || content.length == 0) {
+        return null;
+      }
+      return new TranslationResult(content, resolveResultExtension(extension));
     } catch (final Exception ex) {
       log.error("Failed to translate document {}", filename, ex);
       return null;
     }
+  }
+
+  /** A presentation stays a presentation, everything else comes back as a .docx. */
+  private String resolveResultExtension(final String sourceExtension) {
+    return switch (sourceExtension) {
+      case "ppt", "pptx" -> sourceExtension;
+      default -> "docx";
+    };
   }
 
   /**
@@ -197,7 +240,25 @@ public class DocumentTranslationService {
           .map(text -> text == null ? "" : text.replace("\r", "").trim())
           .toList();
     }
+    return translateAndRender(paragraphTexts, targetLanguage, progressCallback);
+  }
 
+  private byte[] translatePdf(final byte[] fileBytes, final String filename,
+      final String targetLanguage, final Consumer<Integer> progressCallback) {
+    final String text = bookTextExtractorService.extractText(fileBytes, filename);
+    if (StringUtils.isBlank(text)) {
+      log.warn("PDF {} has no extractable text layer", filename);
+      return null;
+    }
+    return translateAndRender(splitPdfTextIntoParagraphs(text), targetLanguage, progressCallback);
+  }
+
+  /**
+   * Translates plain paragraphs and renders them into a fresh .docx. Used for the formats that
+   * cannot be reused as a template (.doc, .pdf).
+   */
+  private byte[] translateAndRender(final List<String> paragraphTexts, final String targetLanguage,
+      final Consumer<Integer> progressCallback) {
     final Map<Integer, String> translations =
         translateParagraphs(paragraphTexts, targetLanguage, progressCallback);
     if (translations.isEmpty()) {
@@ -215,9 +276,204 @@ public class DocumentTranslationService {
       }
       builder.append(text);
     }
-
-    // The legacy format cannot be reused as a template, so the text is rendered into a fresh .docx.
     return docxGeneratorService.generateDocxFromMarkdown(builder.toString());
+  }
+
+  /**
+   * A PDF carries no paragraph marks: the extracted text is wrapped at the visual line width. Lines
+   * are glued back together, hyphenated word breaks are repaired and a new paragraph is started on
+   * an empty line or after a noticeably short line, which is where a paragraph normally ends.
+   */
+  private List<String> splitPdfTextIntoParagraphs(final String text) {
+    final String[] lines = text.replace("\r\n", "\n").replace('\r', '\n').split("\n");
+    final double averageLength = Arrays.stream(lines)
+        .map(String::trim)
+        .filter(line -> !line.isEmpty())
+        .mapToInt(String::length)
+        .average()
+        .orElse(0);
+
+    final List<String> paragraphs = new ArrayList<>();
+    final StringBuilder currentParagraph = new StringBuilder();
+
+    for (final String rawLine : lines) {
+      final String line = rawLine.trim();
+      if (line.isEmpty()) {
+        flushParagraph(paragraphs, currentParagraph);
+        continue;
+      }
+
+      if (currentParagraph.length() > 0) {
+        if (currentParagraph.charAt(currentParagraph.length() - 1) == '-') {
+          currentParagraph.setLength(currentParagraph.length() - 1);
+        } else {
+          currentParagraph.append(' ');
+        }
+      }
+      currentParagraph.append(line);
+
+      if (line.length() < averageLength * PDF_SHORT_LINE_RATIO) {
+        flushParagraph(paragraphs, currentParagraph);
+      }
+    }
+    flushParagraph(paragraphs, currentParagraph);
+    return paragraphs;
+  }
+
+  private void flushParagraph(final List<String> paragraphs, final StringBuilder currentParagraph) {
+    if (currentParagraph.length() > 0) {
+      paragraphs.add(currentParagraph.toString().trim());
+      currentParagraph.setLength(0);
+    }
+  }
+
+  private byte[] translatePptx(final byte[] fileBytes, final String targetLanguage,
+      final Consumer<Integer> progressCallback) throws IOException {
+    try (final XMLSlideShow slideShow = new XMLSlideShow(new ByteArrayInputStream(fileBytes));
+        final ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+
+      final List<XSLFTextParagraph> paragraphs = new ArrayList<>();
+      for (final XSLFSlide slide : slideShow.getSlides()) {
+        collectFromShapes(slide.getShapes(), paragraphs);
+        final XSLFNotes notes = slide.getNotes();
+        if (notes != null) {
+          collectFromShapes(notes.getShapes(), paragraphs);
+        }
+      }
+
+      final List<String> paragraphTexts =
+          paragraphs.stream().map(XSLFTextParagraph::getText).toList();
+      final Map<Integer, String> translations =
+          translateParagraphs(paragraphTexts, targetLanguage, progressCallback);
+      if (translations.isEmpty()) {
+        return null;
+      }
+
+      translations.forEach((index, text) -> applySlideTranslation(paragraphs.get(index), text));
+
+      slideShow.write(out);
+      return out.toByteArray();
+    }
+  }
+
+  private void collectFromShapes(final List<XSLFShape> shapes,
+      final List<XSLFTextParagraph> paragraphs) {
+    for (final XSLFShape shape : shapes) {
+      if (shape instanceof final XSLFGroupShape group) {
+        collectFromShapes(group.getShapes(), paragraphs);
+      } else if (shape instanceof final XSLFTable table) {
+        for (final XSLFTableRow row : table.getRows()) {
+          for (final XSLFTableCell cell : row.getCells()) {
+            paragraphs.addAll(cell.getTextParagraphs());
+          }
+        }
+      } else if (shape instanceof final XSLFTextShape textShape) {
+        paragraphs.addAll(textShape.getTextParagraphs());
+      }
+    }
+  }
+
+  /**
+   * Writes the translated text into the runs of a slide paragraph. Line breaks inside the paragraph
+   * are kept: when the translation has as many lines as the original, every line goes into its own
+   * part of the paragraph, otherwise the whole text goes into the first one.
+   */
+  private void applySlideTranslation(final XSLFTextParagraph paragraph, final String text) {
+    final List<List<XSLFTextRun>> lineGroups = splitIntoLineGroups(paragraph);
+    if (lineGroups.isEmpty()) {
+      paragraph.addNewTextRun().setText(text);
+      return;
+    }
+
+    final String[] lines = text.split("\n");
+    if (lines.length == lineGroups.size()) {
+      for (int i = 0; i < lineGroups.size(); i++) {
+        applySlideLine(lineGroups.get(i), lines[i]);
+      }
+      return;
+    }
+
+    applySlideLine(lineGroups.get(0), text.replace('\n', ' '));
+    for (int i = 1; i < lineGroups.size(); i++) {
+      applySlideLine(lineGroups.get(i), "");
+    }
+  }
+
+  /** Splits the runs of a paragraph by the line breaks ({@code <a:br/>}) between them. */
+  private List<List<XSLFTextRun>> splitIntoLineGroups(final XSLFTextParagraph paragraph) {
+    final List<List<XSLFTextRun>> lineGroups = new ArrayList<>();
+    List<XSLFTextRun> currentGroup = new ArrayList<>();
+
+    for (final XSLFTextRun run : paragraph.getTextRuns()) {
+      if (run.getXmlObject() instanceof CTRegularTextRun) {
+        currentGroup.add(run);
+      } else {
+        lineGroups.add(currentGroup);
+        currentGroup = new ArrayList<>();
+      }
+    }
+    lineGroups.add(currentGroup);
+
+    lineGroups.removeIf(List::isEmpty);
+    return lineGroups;
+  }
+
+  private void applySlideLine(final List<XSLFTextRun> runs, final String line) {
+    int targetIndex = 0;
+    for (int i = 0; i < runs.size(); i++) {
+      if (StringUtils.isNotBlank(runs.get(i).getRawText())) {
+        targetIndex = i;
+        break;
+      }
+    }
+    for (int i = 0; i < runs.size(); i++) {
+      runs.get(i).setText(i == targetIndex ? line : "");
+    }
+  }
+
+  /**
+   * The legacy .ppt keeps its text inside binary records, so the text of a whole shape is replaced
+   * at once — POI then preserves the formatting of its first run.
+   */
+  private byte[] translateLegacyPpt(final byte[] fileBytes, final String targetLanguage,
+      final Consumer<Integer> progressCallback) throws IOException {
+    try (final HSLFSlideShow slideShow = new HSLFSlideShow(new ByteArrayInputStream(fileBytes));
+        final ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+
+      final List<List<HSLFTextParagraph>> shapeTexts = new ArrayList<>();
+      for (final HSLFSlide slide : slideShow.getSlides()) {
+        collectFromLegacyShapes(slide.getShapes(), shapeTexts);
+      }
+
+      final List<String> shapeTextValues = shapeTexts.stream()
+          .map(paragraphs -> HSLFTextParagraph.getRawText(paragraphs).replace('\r', '\n'))
+          .toList();
+      final Map<Integer, String> translations =
+          translateParagraphs(shapeTextValues, targetLanguage, progressCallback);
+      if (translations.isEmpty()) {
+        return null;
+      }
+
+      translations.forEach((index, text) -> HSLFTextParagraph.setText(shapeTexts.get(index), text));
+
+      slideShow.write(out);
+      return out.toByteArray();
+    }
+  }
+
+  private void collectFromLegacyShapes(final List<HSLFShape> shapes,
+      final List<List<HSLFTextParagraph>> shapeTexts) {
+    for (final HSLFShape shape : shapes) {
+      // HSLFTable is a group shape as well, so its cells are collected by the same recursion.
+      if (shape instanceof final HSLFGroupShape group) {
+        collectFromLegacyShapes(group.getShapes(), shapeTexts);
+      } else if (shape instanceof final HSLFTextShape textShape) {
+        final List<HSLFTextParagraph> paragraphs = textShape.getTextParagraphs();
+        if (paragraphs != null && !paragraphs.isEmpty()) {
+          shapeTexts.add(paragraphs);
+        }
+      }
+    }
   }
 
   /**
@@ -520,6 +776,11 @@ public class DocumentTranslationService {
   }
 
   private record Segment(int paragraphIndex, String text) {
+
+  }
+
+  /** Translated file together with the extension it has to be sent with. */
+  public record TranslationResult(byte[] content, String extension) {
 
   }
 }

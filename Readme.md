@@ -1,6 +1,6 @@
 #  Family Telegram Bot
 
-A highly functional, self-hosted, **Spring Boot 3.x** and **AI-powered** Telegram bot. Built to serve as an intelligent, context-aware companion for family and group chats, it features real-time voice and video transcriptions, rich article generation (delivered as customized Word documents), automated comedic diaries, multi-language support, emotional tracking, and background media downloading.
+A highly functional, self-hosted, **Spring Boot 3.x** and **AI-powered** Telegram bot. Built to serve as an intelligent, context-aware companion for family and group chats, it features real-time voice and video transcriptions, rich article generation (delivered as customized Word documents), literary translation of whole books and PowerPoint presentations, automated comedic diaries, multi-language support, emotional tracking, and background media downloading.
 
 Specifically optimized for portability, it can run flawlessly on lightweight environments—including **Termux on Android**—as a portable self-hosted private hub.
 
@@ -43,6 +43,14 @@ Specifically optimized for portability, it can run flawlessly on lightweight env
 * **Native Support:** Dynamic locale switching supporting **English**, **Ukrainian (uk)**, **Slovak (sk)**, and **Russian (ru)**.
 * **Smart Detection:** Automatically infers the preferred language from user profiles or the active group chat context.
 
+### 9. Literary Book & Presentation Translator (`/translate-xx`)
+* **Any Target Language:** The language is typed right after the dash — `/translate-en`, `/translate-sk`, `/translate-de`, `/translate-japanese`. The 30 most widely spoken languages are recognised by their ISO codes (including frequent typos such as `ua` or `cz`), anything else is resolved through the JVM locales or passed to the AI as typed. Plain `/translate` defaults to English.
+* **Supported Input:** `.docx`, `.doc`, `.pdf`, `.pptx` and `.ppt`. Send the file with the command in its caption, forward it, or simply reply with the command to a message that already contains the file.
+* **Formatting Preserved:** For `.docx` and `.pptx` the original file itself is reused as a template — only the text is swapped, so styles, headings, tables, headers/footers, slide layouts, images and animations survive the translation untouched. **A presentation comes back as a presentation**, a document as a `.docx`.
+* **Legacy & PDF Formats:** `.ppt` is rewritten in place through the binary HSLF records, while `.doc` and `.pdf` (which carry no reusable template) are re-rendered into a freshly styled `.docx`. For PDFs the visually wrapped lines are glued back into real paragraphs and hyphenated word breaks are repaired before the translation starts.
+* **Truly Literary Output:** A dedicated system prompt (`prompts/translate_prompt.txt`) instructs the AI to translate the meaning, voice and rhythm instead of the words, combined with a deliberately **low temperature (0.2)** so the result reads naturally while the AI invents, embellishes or omits nothing.
+* **Parallel Chunked Pipeline:** Long books are split into marker-numbered segments, grouped into chunks and translated by a pool of 3 concurrent AI requests, with a live progress percentage edited into the chat message. Partially answered chunks are retried and then re-translated segment by segment, so a single provider hiccup can never silently drop a paragraph.
+
 ---
 
 ## Technology Stack
@@ -53,6 +61,7 @@ Specifically optimized for portability, it can run flawlessly on lightweight env
 * **AI Integration:** Gemini API (configured with a primary API key, system prompt control, and automatic secondary key fallback for high reliability)
 * **Media Processing:** JAVE2 / FFMPEG (transcoding OGG to MP3, extracting audio tracks from MP4)
 * **Document Generation:** Apache POI (parsing Markdown formatting directly into styled OpenXML `.docx` files)
+* **Document & Presentation Translation:** Apache POI XWPF/XSLF (reusing `.docx`/`.pptx` files as templates), POI Scratchpad HWPF/HSLF (legacy `.doc`/`.ppt`) and Apache PDFBox (PDF text extraction)
 * **Build System:** Gradle (Kotlin DSL)
 
 ---
@@ -135,6 +144,9 @@ Alternatively, use the built-in execution scripts:
 * `/help` - Sends an elegant interactive command cheatsheet.
 * `/news <text/link>` - Submits news text or links to the AI, which rewrites it into a punchy news item. Supports attached images.
 * `/articles <text/link>` - Prompts the AI to generate a full-length, structured article from the provided source, then generates and returns a fully styled `.docx` file.
+* `/translate-<lang>` - Sends back a literary translation of an attached (or replied-to) `.docx`, `.doc`, `.pdf`, `.pptx` or `.ppt` file with its original formatting preserved. The target language follows the dash: `/translate-en`, `/translate-sk`, `/translate-pl`.
+* `/book` - Reply with this command to a `.txt`, `.docx`, `.fb2` or `.pdf` file to get the whole text narrated by roles as a single MP3 audio drama.
+* `/doc <question>` - Asks the AI any question and returns the formatted answer (tables included) as a `.docx` file.
 * `/text` - Reply to any audio file, voice note, video note, or video file with this command to instantly transcribe its speech to text.
 * `/audio` - Reply to any video file or video note with this command to extract its audio track as a downloadable MP3 file.
 * `/daily dd-MM-yyyy` - Retrieves the comedic daily summary corresponding to the specified date.
