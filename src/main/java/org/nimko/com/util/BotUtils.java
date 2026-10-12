@@ -141,6 +141,10 @@ public final class BotUtils {
     return readResourceFile("prompts/book_prompt.txt");
   }
 
+  public static String translatePrompt() {
+    return readResourceFile("prompts/translate_prompt.txt");
+  }
+
   public static String rolesPrompt() {
     return readResourceFile("prompts/roles_prompt.txt");
   }
