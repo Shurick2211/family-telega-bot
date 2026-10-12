@@ -18,6 +18,8 @@ public class AiChatService {
 
   private static final Logger log = LoggerFactory.getLogger(AiChatService.class);
   private static final int MAX_TOKENS = 8000;
+  private static final double SYSTEM_PROMPT_TEMPERATURE = 0.3d;
+  private static final double TRANSLATION_TEMPERATURE = 0.2d;
   private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(30);
   private static final Duration READ_TIMEOUT = Duration.ofMinutes(5);
   private final String transcriptionModel;
@@ -88,12 +90,24 @@ public class AiChatService {
     return askInternalWithSystem(prompt, BotUtils.docPrompt());
   }
 
+  /**
+   * Literary translation request. Uses a low temperature so the translation stays natural but
+   * faithful to the original text, without the model inventing anything.
+   */
+  public String askTranslate(final String systemPrompt, final String prompt) {
+    return askInternalWithSystem(prompt, systemPrompt, TRANSLATION_TEMPERATURE);
+  }
+
   private String askInternalWithSystem(final String prompt, final String systemPrompt) {
+    return askInternalWithSystem(prompt, systemPrompt, SYSTEM_PROMPT_TEMPERATURE);
+  }
+
+  private String askInternalWithSystem(final String prompt, final String systemPrompt,
+      final double temperature) {
     if (!properties.isConfigured()) {
       return "AI provider is not configured.";
     }
 
-    final double temperature = 0.3d;
     final String userPrompt = StringUtils.isNotBlank(prompt) ? prompt.trim() : "";
     final var currentModel = properties.defaultModel();
 
