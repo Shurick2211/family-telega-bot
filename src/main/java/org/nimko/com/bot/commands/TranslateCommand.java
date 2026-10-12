@@ -8,6 +8,7 @@ import org.nimko.com.bot.dto.ReplyData;
 import org.nimko.com.bot.messenger.IncomingMessage;
 import org.nimko.com.bot.messenger.MediaFileService;
 import org.nimko.com.services.DocumentTranslationService;
+import org.nimko.com.services.DocumentTranslationService.TranslationResult;
 import org.nimko.com.services.I18nService;
 import org.nimko.com.util.BotUtils;
 import org.slf4j.Logger;
@@ -16,8 +17,9 @@ import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Service;
 
 /**
- * Translates a .doc/.docx book attached to the message (or to the message it replies to) into the
- * language typed after the dash and sends back a .docx with the original formatting preserved:
+ * Translates a book (.doc, .docx, .pdf) or a PowerPoint presentation (.ppt, .pptx) attached to the
+ * message (or to the message it replies to) into the language typed after the dash and sends the
+ * result back with the original formatting preserved — a presentation stays a presentation:
  * {@code /translate-en}, {@code /translate-de}, {@code /translate-uk}.
  */
 @Service
@@ -87,19 +89,20 @@ public class TranslateCommand implements CommandProcess {
         final Integer progressMessageId =
             botSenderService.sendTextAndGetMessageId(chatId, preparingText + " 0%");
 
-        final byte[] docxBytes = documentTranslationService.translateToDocx(fileBytes, filename,
+        final TranslationResult result = documentTranslationService.translate(fileBytes, filename,
             languageCode, progress -> {
               if (progressMessageId != null) {
                 botSenderService.editMessageText(chatId, progressMessageId,
                     preparingText + " " + progress + "%");
               }
             });
-        if (docxBytes == null || docxBytes.length == 0) {
+        if (result == null || result.content().length == 0) {
           botSenderService.sendTextReply(chatId, i18nService.getTranslate("bot.translate.failed"));
           return;
         }
 
-        botSenderService.sendDocument(chatId, docxBytes, buildFilename(filename, languageCode));
+        botSenderService.sendDocument(chatId, result.content(),
+            buildFilename(filename, languageCode, result.extension()));
       } catch (final Exception ex) {
         log.error("Error processing {} command for chat {}", COMMAND, chatId, ex);
         botSenderService.sendTextReply(chatId,
@@ -118,12 +121,13 @@ public class TranslateCommand implements CommandProcess {
     return StringUtils.isNotBlank(languageCode) ? languageCode : DEFAULT_LANGUAGE_CODE;
   }
 
-  private String buildFilename(final String sourceFilename, final String languageCode) {
+  private String buildFilename(final String sourceFilename, final String languageCode,
+      final String extension) {
     final String baseName = sourceFilename.contains(".")
         ? sourceFilename.substring(0, sourceFilename.lastIndexOf('.'))
         : sourceFilename;
     return baseName + "_" + languageCode.toLowerCase(Locale.ROOT) + "_"
-        + System.currentTimeMillis() + ".docx";
+        + System.currentTimeMillis() + "." + extension;
   }
 
   private IncomingMessage resolveDocumentMessage(final IncomingMessage message) {
